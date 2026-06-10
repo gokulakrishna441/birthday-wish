@@ -1,15 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus } from 'lucide-react'
 
 function WishesWall({ onCelebrate }) {
-  const [wishes, setWishes] = useState([
-    { id: 1, text: "May your year be filled with laughter, endless joy, and wonderful surprises! 💖", sender: "With Love", color: "pink" },
-    { id: 2, text: "To my partner in crime and the best sister in the world - thank you for always having my back. 🌟", sender: "Your Sibling", color: "indigo" },
-    { id: 3, text: "Wishing you a day as beautiful, bright, and amazing as you are! Happy Birthday! 🎉", sender: "Best Wishes", color: "gold" }
-  ])
+  const [wishes, setWishes] = useState(() => {
+    const saved = localStorage.getItem('birthday_wishes')
+    if (saved) {
+      try {
+        return JSON.parse(saved)
+      } catch (e) {
+        console.error('Failed to load wishes from localStorage:', e)
+      }
+    }
+    return [
+      { id: 1, text: "May your year be filled with laughter, endless joy, and wonderful surprises! 💖", sender: "With Love", color: "pink" },
+      { id: 2, text: "To my partner in crime and the best sister in the world - thank you for always having my back. 🌟", sender: "Your Sibling", color: "indigo" },
+      { id: 3, text: "Wishing you a day as beautiful, bright, and amazing as you are! Happy Birthday! 🎉", sender: "Best Wishes", color: "gold" }
+    ]
+  })
   const [newWish, setNewWish] = useState('')
   const [newSender, setNewSender] = useState('')
   const [wishColor, setWishColor] = useState('pink')
+
+  useEffect(() => {
+    localStorage.setItem('birthday_wishes', JSON.stringify(wishes))
+  }, [wishes])
 
   const handleAddWish = (e) => {
     e.preventDefault()
