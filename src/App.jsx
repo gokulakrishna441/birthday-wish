@@ -1,13 +1,9 @@
-import { useState } from 'react'
-import { 
-  Heart, 
-  Cake, 
-  BookOpen, 
-  Image as ImageIcon 
-} from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Heart } from 'lucide-react'
 
 import Entrance from './components/Entrance'
 import FloatingParticles from './components/FloatingParticles'
+import FloatingWishes from './components/FloatingWishes'
 import ConfettiOverlay from './components/ConfettiOverlay'
 import GreetingHeader from './components/GreetingHeader'
 import AudioPlayer from './components/AudioPlayer'
@@ -15,11 +11,55 @@ import Card3D from './components/Card3D'
 import VirtualCake from './components/VirtualCake'
 import MemoryGallery from './components/MemoryGallery'
 import WishesWall from './components/WishesWall'
+import { db, isFirebaseEnabled } from './firebase'
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore'
+
+const DEFAULT_WISHES = [
+  { id: 'default1', text: "May your year be filled with laughter, endless joy, and wonderful surprises! 💖", sender: "With Love", color: "pink", timestamp: 1 },
+  { id: 'default2', text: "To my partner in crime and the best sister in the world - thank you for always having my back. 🌟", sender: "Your Sibling", color: "indigo", timestamp: 2 },
+  { id: 'default3', text: "Wishing you a day as beautiful, bright, and amazing as you are! Happy Birthday! 🎉", sender: "Best Wishes", color: "gold", timestamp: 3 }
+]
 
 function App() {
-  const [hasEntered, setHasEntered] = useState(false)
-  const [activeTab, setActiveTab] = useState('card') // 'card', 'cake', 'memories', 'wishes'
+  const [userRole, setUserRole] = useState(null) // null, 'visitor', 'sister'
   const [confetti, setConfetti] = useState([])
+  const [wishes, setWishes] = useState(() => {
+    if (!isFirebaseEnabled) {
+      const saved = localStorage.getItem('birthday_wishes')
+      if (saved) {
+        try {
+          return JSON.parse(saved)
+        } catch (e) {
+          console.error('Failed to load wishes from localStorage:', e)
+        }
+      }
+      return DEFAULT_WISHES
+    }
+    return []
+  })
+
+  // Fetch wishes globally (Firestore only)
+  useEffect(() => {
+    if (isFirebaseEnabled) {
+      const wishesRef = collection(db, 'wishes')
+      const q = query(wishesRef, orderBy('timestamp', 'desc'))
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const list = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        if (list.length > 0) {
+          setWishes(list)
+        } else {
+          setWishes(DEFAULT_WISHES)
+        }
+      }, (error) => {
+        console.error('Failed to load wishes from Firestore:', error)
+        setWishes(DEFAULT_WISHES)
+      })
+      return () => unsubscribe()
+    }
+  }, [])
 
   // Trigger confetti celebration
   const triggerConfetti = () => {
@@ -43,12 +83,12 @@ function App() {
     }, 6000)
   }
 
-  const handleEnter = () => {
-    setHasEntered(true)
+  const handleEnter = (role) => {
+    setUserRole(role)
     triggerConfetti()
   }
 
-  if (!hasEntered) {
+  if (!userRole) {
     return <Entrance onEnter={handleEnter} />
   }
 
@@ -58,56 +98,46 @@ function App() {
       {/* Floating particles background in main application */}
       <FloatingParticles type="main" />
 
+      {/* Floating wishes in background across all tabs */}
+      <FloatingWishes wishes={wishes} />
+
       {/* Confetti Rain Overlay */}
       <ConfettiOverlay confetti={confetti} />
 
       {/* Elegant Greeting Header */}
-      <GreetingHeader />
+      <GreetingHeader role={userRole} />
 
-      {/* Custom Synthesized Chimes Music Player */}
-      <AudioPlayer />
-
-      {/* Tab Navigation Menu */}
-      <div style={{ textAlign: 'center' }}>
-        <div className="tab-nav">
-          <button 
-            className={`tab-btn ${activeTab === 'card' ? 'active' : ''}`}
-            onClick={() => setActiveTab('card')}
-          >
-            <BookOpen size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }} />
-            3D Card
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'cake' ? 'active' : ''}`}
-            onClick={() => setActiveTab('cake')}
-          >
-            <Cake size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }} />
-            Virtual Cake
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'memories' ? 'active' : ''}`}
-            onClick={() => setActiveTab('memories')}
-          >
-            <ImageIcon size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }} />
-            Memory Gallery
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'wishes' ? 'active' : ''}`}
-            onClick={() => setActiveTab('wishes')}
-          >
-            <Heart size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }} />
-            Wishes Wall
-          </button>
-        </div>
-      </div>
-
-      {/* Main Tabbed Content Area */}
-      <main style={{ marginTop: '20px', minHeight: '400px' }}>
-        {activeTab === 'card' && <Card3D />}
-        {activeTab === 'cake' && <VirtualCake onCelebrate={triggerConfetti} />}
-        {activeTab === 'memories' && <MemoryGallery />}
-        {activeTab === 'wishes' && <WishesWall onCelebrate={triggerConfetti} />}
-      </main>
+      {/* Main Content Area: Vertical Scroll Flow */}
+      {userRole === 'visitor' ? (
+        <main style={{ marginTop: '20px', minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '60px' }}>
+          <section className="scroll-section fade-in">
+            <MemoryGallery />
+          </section>
+          <section className="scroll-section fade-in">
+            <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} />
+          </section>
+        </main>
+      ) : (
+        <>
+          {/* Custom Synthesized Chimes Music Player */}
+          <AudioPlayer />
+          
+          <main style={{ marginTop: '40px', minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '80px' }}>
+            <section className="scroll-section fade-in">
+              <Card3D />
+            </section>
+            <section className="scroll-section fade-in">
+              <VirtualCake onCelebrate={triggerConfetti} />
+            </section>
+            <section className="scroll-section fade-in">
+              <MemoryGallery />
+            </section>
+            <section className="scroll-section fade-in">
+              <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} />
+            </section>
+          </main>
+        </>
+      )}
 
       {/* Footer */}
       <footer style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', marginTop: '80px', padding: '30px 0', textAlign: 'center' }}>

@@ -151,18 +151,32 @@ h1, h2, h3, h4 {
 
 @keyframes float-upwards {
   0% {
-    transform: translateY(110vh) translateX(0) rotate(0deg);
+    transform: translateY(105vh) translateX(-30px) rotate(0deg);
     opacity: 0;
   }
   10% {
     opacity: 0.8;
   }
+  50% {
+    transform: translateY(50vh) translateX(40px) rotate(180deg);
+  }
   90% {
     opacity: 0.8;
   }
   100% {
-    transform: translateY(-10vh) translateX(50px) rotate(360deg);
+    transform: translateY(-10vh) translateX(-30px) rotate(360deg);
     opacity: 0;
+  }
+}
+
+/* Scroll Section Spacing */
+.scroll-section {
+  margin-bottom: 80px;
+}
+
+@media (max-width: 768px) {
+  .scroll-section {
+    margin-bottom: 50px;
   }
 }
 
