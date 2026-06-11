@@ -82,8 +82,8 @@ function FloatingWishes({ wishes = [], memories = [] }) {
 
       {activeWishes.map((w, index) => {
         // Stagger positions vertically and place strictly in side gutters
-        const speed = 25 + ((index * 6) % 15) // 25s - 40s travel speed
-        const delay = (index * 7) % 35
+        const speed = 12 + ((index * 4) % 10) // 12s - 22s travel speed (faster!)
+        const delay = (index * 5) % 20
         const scale = 0.85 + ((index * 2) % 4) * 0.05
         const isLeftGutter = index % 2 === 0
         const gutterOffset = 1.5 + ((index * 3) % 9) // 1.5% to 10.5% viewport width offsets
