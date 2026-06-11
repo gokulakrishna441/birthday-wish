@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Wifi, WifiOff } from 'lucide-react'
 import { db, isFirebaseEnabled } from '../firebase'
-import { ref, push, onValue } from 'firebase/database'
+import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore'
 
 const DEFAULT_WISHES = [
   { id: 'default1', text: "May your year be filled with laughter, endless joy, and wonderful surprises! 💖", sender: "With Love", color: "pink", timestamp: 1 },
@@ -29,25 +29,24 @@ function WishesWall({ onCelebrate }) {
   const [wishColor, setWishColor] = useState('pink')
   const [loading, setLoading] = useState(isFirebaseEnabled)
 
-  // Load wishes (Firebase only)
+  // Load wishes (Firestore only)
   useEffect(() => {
     if (isFirebaseEnabled) {
-      const wishesRef = ref(db, 'wishes')
-      const unsubscribe = onValue(wishesRef, (snapshot) => {
-        const data = snapshot.val()
-        if (data) {
-          const list = Object.entries(data).map(([key, value]) => ({
-            id: key,
-            ...value
-          }))
-          list.sort((a, b) => b.timestamp - a.timestamp)
+      const wishesRef = collection(db, 'wishes')
+      const q = query(wishesRef, orderBy('timestamp', 'desc'))
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const list = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        if (list.length > 0) {
           setWishes(list)
         } else {
           setWishes(DEFAULT_WISHES)
         }
         setLoading(false)
       }, (error) => {
-        console.error('Failed to load wishes from Firebase:', error)
+        console.error('Failed to load wishes from Firestore:', error)
         setWishes(DEFAULT_WISHES)
         setLoading(false)
       })
@@ -77,16 +76,16 @@ function WishesWall({ onCelebrate }) {
         timestamp: Date.now()
       }
       try {
-        const wishesRef = ref(db, 'wishes')
-        await push(wishesRef, wish)
+        const wishesRef = collection(db, 'wishes')
+        await addDoc(wishesRef, wish)
         setNewWish('')
         setNewSender('')
         if (onCelebrate) {
           onCelebrate()
         }
       } catch (err) {
-        console.error('Failed to submit wish to Firebase:', err)
-        alert('Failed to submit wish to Cloud Database. Please check your Firebase connection and rules.')
+        console.error('Failed to submit wish to Firestore:', err)
+        alert('Failed to submit wish to Cloud Firestore. Please verify your Firestore Database Rules.')
       }
     } else {
       // LocalStorage Fallback

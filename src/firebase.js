@@ -1,15 +1,16 @@
 import { initializeApp, getApps, getApp } from 'firebase/app'
-import { getDatabase } from 'firebase/database'
+import { getFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
+import { getAnalytics } from 'firebase/analytics'
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: "AIzaSyBnFurKxZuCrRwZnjfSH6YvfjAt16hHZVg",
+  authDomain: "birthday-wishes-441.firebaseapp.com",
+  projectId: "birthday-wishes-441",
+  storageBucket: "birthday-wishes-441.firebasestorage.app",
+  messagingSenderId: "469742658314",
+  appId: "1:469742658314:web:e356a7fc1990be4e6290f3",
+  measurementId: "G-5ZQM19FNGT"
 }
 
 // Firebase is enabled if the API key is set
@@ -21,13 +22,14 @@ let storage = null
 if (isFirebaseEnabled) {
   try {
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()
-    db = getDatabase(app)
+    db = getFirestore(app)
     storage = getStorage(app)
+    if (typeof window !== 'undefined') {
+      getAnalytics(app)
+    }
   } catch (error) {
     console.error('Firebase initialization failed:', error)
   }
-} else {
-  console.warn('Firebase API key is missing. Falling back to local browser storage.')
 }
 
 export { db, storage, isFirebaseEnabled }

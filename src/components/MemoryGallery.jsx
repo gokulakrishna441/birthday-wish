@@ -3,7 +3,7 @@ import { Upload, Trash2, Wifi, WifiOff, Loader2 } from 'lucide-react'
 import birthdayBg from '../assets/birthday_bg.png'
 import memoryBg from '../assets/memory_bg.png'
 import { db, storage, isFirebaseEnabled } from '../firebase'
-import { ref, push, onValue, remove } from 'firebase/database'
+import { collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 
 function MemoryGallery() {
@@ -24,25 +24,20 @@ function MemoryGallery() {
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef(null)
 
-  // Load user memories (Firebase only)
+  // Load user memories (Firestore only)
   useEffect(() => {
     if (isFirebaseEnabled) {
-      const memoriesRef = ref(db, 'memories')
-      const unsubscribe = onValue(memoriesRef, (snapshot) => {
-        const data = snapshot.val()
-        if (data) {
-          const list = Object.entries(data).map(([key, value]) => ({
-            id: key,
-            ...value
-          }))
-          list.sort((a, b) => b.timestamp - a.timestamp)
-          setUserImages(list)
-        } else {
-          setUserImages([])
-        }
+      const memoriesRef = collection(db, 'memories')
+      const q = query(memoriesRef, orderBy('timestamp', 'desc'))
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const list = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        setUserImages(list)
         setLoading(false)
       }, (error) => {
-        console.error('Failed to load memories from Firebase:', error)
+        console.error('Failed to load memories from Firestore:', error)
         setUserImages([])
         setLoading(false)
       })
@@ -72,7 +67,7 @@ function MemoryGallery() {
         await uploadBytes(fileRef, file)
         const downloadUrl = await getDownloadURL(fileRef)
 
-        // 2. Save metadata to Realtime Database
+        // 2. Save metadata to Firestore
         const newImage = {
           src: downloadUrl,
           storagePath: filePath,
@@ -80,11 +75,11 @@ function MemoryGallery() {
           description: 'A beautiful moment added to the gallery.',
           timestamp
         }
-        const memoriesRef = ref(db, 'memories')
-        await push(memoriesRef, newImage)
+        const memoriesRef = collection(db, 'memories')
+        await addDoc(memoriesRef, newImage)
       } catch (err) {
         console.error('Failed to upload image to Firebase:', err)
-        alert('Failed to upload image to Cloud Storage. Please verify Firebase rules.')
+        alert('Failed to upload image to Cloud Storage. Please verify Firestore Database Rules and Storage Rules.')
       } finally {
         setUploading(false)
       }
@@ -110,11 +105,10 @@ function MemoryGallery() {
     if (confirm('Are you sure you want to delete this memory?')) {
       if (isFirebaseEnabled) {
         try {
-          // Delete from database
-          const imageRef = ref(db, `memories/${id}`)
-          await remove(imageRef)
+          // Delete from Firestore
+          await deleteDoc(doc(db, 'memories', id))
 
-          // Delete from storage
+          // Delete from Storage
           if (storagePath) {
             const fileRef = storageRef(storage, storagePath)
             await deleteObject(fileRef).catch(err => {
