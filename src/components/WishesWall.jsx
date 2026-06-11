@@ -3,7 +3,7 @@ import { Plus, Wifi, WifiOff } from 'lucide-react'
 import { db, isFirebaseEnabled } from '../firebase'
 import { collection, addDoc } from 'firebase/firestore'
 
-function WishesWall({ wishes = [], setWishes, onCelebrate }) {
+function WishesWall({ wishes = [], setWishes, onCelebrate, showStaticGrid = true }) {
   const [newWish, setNewWish] = useState('')
   const [newSender, setNewSender] = useState('')
   const [wishColor, setWishColor] = useState('pink')
@@ -241,59 +241,61 @@ function WishesWall({ wishes = [], setWishes, onCelebrate }) {
         </button>
       </form>
 
-      {/* Display Board */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
-        {wishes.map((w, idx) => (
-          <div 
-            key={w.id} 
-            className="glass-container"
-            onMouseMove={(e) => handleHoverCard(e, w.color)}
-            style={{
-              padding: '24px',
-              textAlign: 'left',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              minHeight: '160px',
-              borderLeft: `4px solid ${
-                w.color === 'pink' ? 'var(--accent-primary)' : w.color === 'indigo' ? 'var(--accent-secondary)' : 'var(--accent-gold)'
-              }`,
-              background: 'rgba(255,255,255,0.02)',
-              animation: 'dropDownCard 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.15) forwards',
-              animationDelay: `${idx * 0.08}s`,
-              opacity: 0,
-              transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.2), box-shadow 0.3s, border-color 0.3s',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-6px)'
-              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)'
-              e.currentTarget.style.boxShadow = `0 12px 24px rgba(0,0,0,0.3), 0 0 15px ${
-                w.color === 'pink' ? 'rgba(255,74,147,0.2)' : w.color === 'indigo' ? 'rgba(140,82,255,0.2)' : 'rgba(255,190,59,0.2)'
-              }`
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
-              e.currentTarget.style.boxShadow = 'none'
-            }}
-          >
-            <p style={{ fontSize: '0.95rem', fontStyle: 'italic', marginBottom: '16px', color: '#eae6f8', lineHeight: '1.5' }}>
-              "{w.text}"
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Posted</span>
-              <span style={{ 
-                fontSize: '0.85rem', 
-                fontWeight: '600', 
-                color: w.color === 'pink' ? 'var(--accent-primary)' : w.color === 'indigo' ? 'var(--accent-secondary)' : 'var(--accent-gold)'
-              }}>
-                - {w.sender}
-              </span>
+      {/* Display Board (Only if showStaticGrid is true) */}
+      {showStaticGrid && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
+          {wishes.map((w, idx) => (
+            <div 
+              key={w.id} 
+              className="glass-container"
+              onMouseMove={(e) => handleHoverCard(e, w.color)}
+              style={{
+                padding: '24px',
+                textAlign: 'left',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                minHeight: '160px',
+                borderLeft: `4px solid ${
+                  w.color === 'pink' ? 'var(--accent-primary)' : w.color === 'indigo' ? 'var(--accent-secondary)' : 'var(--accent-gold)'
+                }`,
+                background: 'rgba(255,255,255,0.02)',
+                animation: 'dropDownCard 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.15) forwards',
+                animationDelay: `${idx * 0.08}s`,
+                opacity: 0,
+                transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.2), box-shadow 0.3s, border-color 0.3s',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-6px)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)'
+                e.currentTarget.style.boxShadow = `0 12px 24px rgba(0,0,0,0.3), 0 0 15px ${
+                  w.color === 'pink' ? 'rgba(255,74,147,0.2)' : w.color === 'indigo' ? 'rgba(140,82,255,0.2)' : 'rgba(255,190,59,0.2)'
+                }`
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
+                e.currentTarget.style.boxShadow = 'none'
+              }}
+            >
+              <p style={{ fontSize: '0.95rem', fontStyle: 'italic', marginBottom: '16px', color: '#eae6f8', lineHeight: '1.5' }}>
+                "{w.text}"
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Posted</span>
+                <span style={{ 
+                  fontSize: '0.85rem', 
+                  fontWeight: '600', 
+                  color: w.color === 'pink' ? 'var(--accent-primary)' : w.color === 'indigo' ? 'var(--accent-secondary)' : 'var(--accent-gold)'
+                }}>
+                  - {w.sender}
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

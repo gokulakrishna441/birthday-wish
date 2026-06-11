@@ -171,7 +171,7 @@ function App() {
             <MemoryGallery />
           </section>
           <section className="scroll-section fade-in">
-            <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} />
+            <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={false} />
           </section>
         </main>
       ) : (
@@ -190,7 +190,7 @@ function App() {
               <MemoryGallery />
             </section>
             <section className="scroll-section fade-in">
-              <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} />
+              <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={true} />
             </section>
           </main>
         </>

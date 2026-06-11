@@ -12,26 +12,57 @@ function FloatingWishes({ wishes = [] }) {
       width: '100vw',
       height: '100vh',
       pointerEvents: 'none', // Let user click items underneath
-      zIndex: 1, // Behind main card content tabs (z-index >= 2)
+      zIndex: 1, // Behind main content but readable
       overflow: 'hidden'
     }}>
       <style>{`
-        @keyframes bgDropWish {
+        @keyframes zigZagDriftRight {
           0% {
-            transform: translateY(-120%) translateX(0) rotate(-2deg);
+            transform: translateX(-150px) translateY(0) rotate(-4deg);
             opacity: 0;
           }
           10% {
-            opacity: 0.25;
+            opacity: 0.6;
+          }
+          25% {
+            transform: translateX(25vw) translateY(-35px) rotate(3deg);
           }
           50% {
-            transform: translateY(50vh) translateX(20px) rotate(3deg);
+            transform: translateX(50vw) translateY(35px) rotate(-3deg);
+          }
+          75% {
+            transform: translateX(75vw) translateY(-35px) rotate(3deg);
           }
           90% {
-            opacity: 0.25;
+            opacity: 0.6;
           }
           100% {
-            transform: translateY(115vh) translateX(-20px) rotate(-3deg);
+            transform: translateX(105vw) translateY(0) rotate(-4deg);
+            opacity: 0;
+          }
+        }
+        @keyframes zigZagDriftLeft {
+          0% {
+            transform: translateX(105vw) translateY(0) rotate(4deg);
+            opacity: 0;
+          }
+          10% {
+            opacity: 0.6;
+          }
+          25% {
+            transform: translateX(75vw) translateY(35px) rotate(-3deg);
+          }
+          50% {
+            transform: translateX(50vw) translateY(-35px) rotate(4deg);
+          }
+          75% {
+            transform: translateX(25vw) translateY(35px) rotate(-3deg);
+          }
+          90% {
+            opacity: 0.6;
+          }
+          100% {
+            transform: translateX(-150px) translateY(0) rotate(4deg);
             opacity: 0;
           }
         }
@@ -44,10 +75,10 @@ function FloatingWishes({ wishes = [] }) {
           z-index: 99999 !important;
         }
         .bg-card-wrapper:hover .bg-floating-card {
-          transform: scale(1.15) !important;
+          transform: scale(1.1) !important;
           opacity: 1 !important;
-          background: rgba(27, 13, 58, 0.96) !important;
-          border-color: rgba(255, 255, 255, 0.5) !important;
+          background: rgba(20, 11, 45, 0.98) !important;
+          border-color: rgba(255, 255, 255, 0.4) !important;
           box-shadow: 0 15px 40px rgba(0,0,0,0.6), 0 0 25px var(--glow-color) !important;
         }
         .bg-floating-card.color-pink {
@@ -63,23 +94,25 @@ function FloatingWishes({ wishes = [] }) {
 
       {activeWishes.map((w, index) => {
         // Calculate stable variations based on index
-        const xPos = 3 + ((index * 23) % 85) // Spread 3% - 88%
-        const speed = 30 + ((index * 11) % 25) // 30s - 55s fall speed (gentle, readable fall)
-        const delay = (index * 6) % 40 // Staggered delays
-        const scale = 0.8 + ((index * 3) % 4) * 0.08 // Scale 0.8 - 1.04
+        const yPos = 8 + ((index * 23) % 78) // Spread vertically 8% - 86%
+        const speed = 25 + ((index * 7) % 15) // 25s - 40s drift speed
+        const delay = (index * 5) % 35 // Staggered delays
+        const scale = 0.85 + ((index * 2) % 4) * 0.05 // Scale 0.85 - 1.04
+        const isLeftToRight = index % 2 === 0
 
         return (
           <div
             key={w.id}
             style={{
               position: 'absolute',
-              left: `${xPos}%`,
-              top: 0,
-              width: '240px',
-              animation: `bgDropWish ${speed}s linear infinite`,
-              // Start floating mid-air immediately on mount using negative delay
+              top: `${yPos}vh`,
+              left: isLeftToRight ? 0 : 'auto',
+              right: isLeftToRight ? 'auto' : 0,
+              width: '260px',
+              animation: `${isLeftToRight ? 'zigZagDriftRight' : 'zigZagDriftLeft'} ${speed}s linear infinite`,
+              // Start drifting immediately mid-animation on mount using negative delay
               animationDelay: `-${delay}s`,
-              zIndex: 1
+              zIndex: 2
             }}
             className="bg-card-wrapper"
           >
@@ -89,13 +122,16 @@ function FloatingWishes({ wishes = [] }) {
                 padding: '16px 20px',
                 borderRadius: '16px',
                 textAlign: 'left',
-                cursor: 'help',
-                background: 'rgba(255, 255, 255, 0.02)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                backdropFilter: 'blur(3px)',
-                opacity: 0.22,
+                cursor: 'pointer',
+                background: 'rgba(20, 11, 45, 0.65)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderLeft: `4px solid ${
+                  w.color === 'pink' ? 'var(--accent-primary)' : w.color === 'indigo' ? 'var(--accent-secondary)' : 'var(--accent-gold)'
+                }`,
+                backdropFilter: 'blur(6px)',
+                opacity: 0.55,
                 transform: `scale(${scale})`,
-                transition: 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s, background 0.4s, border-color 0.4s, box-shadow 0.4s'
+                transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.2), opacity 0.3s, background 0.3s, border-color 0.3s, box-shadow 0.3s'
               }}
             >
               <p style={{ 
