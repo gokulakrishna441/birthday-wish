@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Heart, Key, AlertCircle } from 'lucide-react'
 
 import FloatingParticles from './components/FloatingParticles'
@@ -222,8 +223,8 @@ function App() {
         </footer>
       </div>
 
-      {/* Passcode Modal Overlay (outside layout-container to center relative to viewport) */}
-      {showPasscodeModal && (
+      {/* Passcode Modal Overlay (rendered under body to guarantee centering) */}
+      {showPasscodeModal && createPortal(
         <div style={{
           position: 'fixed',
           inset: 0,
@@ -309,7 +310,8 @@ function App() {
               </button>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
