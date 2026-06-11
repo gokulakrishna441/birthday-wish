@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Heart } from 'lucide-react'
+import { Heart, Key, AlertCircle } from 'lucide-react'
 
-import Entrance from './components/Entrance'
 import FloatingParticles from './components/FloatingParticles'
 import FloatingWishes from './components/FloatingWishes'
 import ConfettiOverlay from './components/ConfettiOverlay'
@@ -11,8 +10,10 @@ import Card3D from './components/Card3D'
 import VirtualCake from './components/VirtualCake'
 import MemoryGallery from './components/MemoryGallery'
 import WishesWall from './components/WishesWall'
-import { db, isFirebaseEnabled } from './firebase'
+import { db, isFirebaseEnabled, logVisit } from './firebase'
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore'
+
+const SISTER_PASSCODE = (import.meta.env.VITE_SISTER_PASSCODE || 'SISTER').toUpperCase().trim()
 
 const DEFAULT_WISHES = [
   { id: 'default1', text: "May your year be filled with laughter, endless joy, and wonderful surprises! 💖", sender: "With Love", color: "pink", timestamp: 1 },
@@ -21,7 +22,10 @@ const DEFAULT_WISHES = [
 ]
 
 function App() {
-  const [userRole, setUserRole] = useState(null) // null, 'visitor', 'sister'
+  const [userRole, setUserRole] = useState('visitor') // Default to guest/visitor directly!
+  const [showPasscodeModal, setShowPasscodeModal] = useState(false)
+  const [code, setCode] = useState('')
+  const [error, setError] = useState('')
   const [confetti, setConfetti] = useState([])
   const [wishes, setWishes] = useState(() => {
     if (!isFirebaseEnabled) {
@@ -37,6 +41,18 @@ function App() {
     }
     return []
   })
+
+  // Silent automatic logging on initial load
+  useEffect(() => {
+    const runLogging = async () => {
+      const logged = sessionStorage.getItem('logged_visit')
+      if (!logged) {
+        await logVisit('guest')
+        sessionStorage.setItem('logged_visit', 'guest')
+      }
+    }
+    runLogging()
+  }, [])
 
   // Fetch wishes globally (Firestore only)
   useEffect(() => {
@@ -83,13 +99,17 @@ function App() {
     }, 6000)
   }
 
-  const handleEnter = (role) => {
-    setUserRole(role)
-    triggerConfetti()
-  }
-
-  if (!userRole) {
-    return <Entrance onEnter={handleEnter} />
+  const handleSisterSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    if (code.toUpperCase().trim() === SISTER_PASSCODE) {
+      setUserRole('sister')
+      setShowPasscodeModal(false)
+      triggerConfetti()
+      await logVisit('sister')
+    } else {
+      setError('Incorrect passcode. Please check and try again!')
+    }
   }
 
   return (
@@ -103,6 +123,43 @@ function App() {
 
       {/* Confetti Rain Overlay */}
       <ConfettiOverlay confetti={confetti} />
+
+      {/* Sister Login Trigger (Subtle button in the top corner) */}
+      {userRole === 'visitor' && (
+        <button 
+          onClick={() => setShowPasscodeModal(true)}
+          style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            color: 'rgba(255,255,255,0.6)',
+            borderRadius: '20px',
+            padding: '8px 16px',
+            fontSize: '0.85rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            cursor: 'pointer',
+            transition: 'all 0.3s',
+            zIndex: 100
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = 'var(--accent-primary)'
+            e.currentTarget.style.borderColor = 'rgba(255, 74, 147, 0.3)'
+            e.currentTarget.style.background = 'rgba(255, 74, 147, 0.05)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'rgba(255,255,255,0.6)'
+            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+            e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+          }}
+        >
+          <Key size={12} />
+          <span>Sister Mode 👑</span>
+        </button>
+      )}
 
       {/* Elegant Greeting Header */}
       <GreetingHeader role={userRole} />
@@ -137,6 +194,96 @@ function App() {
             </section>
           </main>
         </>
+      )}
+
+      {/* Passcode Modal Overlay */}
+      {showPasscodeModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(10,5,24,0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 999999,
+          padding: '20px'
+        }}>
+          <style>{`
+            @keyframes shake {
+              0%, 100% { transform: translateX(0); }
+              25% { transform: translateX(-6px); }
+              75% { transform: translateX(6px); }
+            }
+            .shake-error {
+              animation: shake 0.3s ease-in-out;
+            }
+          `}</style>
+          
+          <div className="glass-container fade-in" style={{ padding: '30px', maxWidth: '400px', width: '100%', position: 'relative' }}>
+            <button 
+              onClick={() => { setShowPasscodeModal(false); setError(''); setCode(''); }}
+              style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                fontSize: '1.2rem',
+                cursor: 'pointer'
+              }}
+            >
+              ✕
+            </button>
+            <h2 style={{ fontSize: '1.6rem', color: 'white', marginBottom: '10px', fontFamily: 'var(--font-serif)' }}>Sister Passcode 👑</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '20px', lineHeight: '1.5' }}>
+              Are you the birthday girl? Enter the secret passcode to unlock your greeting card and birthday cake!
+            </p>
+            <form onSubmit={handleSisterSubmit}>
+              <div style={{ marginBottom: '20px' }}>
+                <input 
+                  type="password"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="Enter secret passcode..."
+                  required
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    background: 'rgba(0,0,0,0.25)',
+                    border: error ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.1)',
+                    color: 'white',
+                    fontSize: '1rem',
+                    outline: 'none',
+                    transition: 'border-color 0.3s'
+                  }}
+                  className={error ? 'shake-error' : ''}
+                />
+                
+                {error && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    color: '#f87171',
+                    fontSize: '0.85rem',
+                    marginTop: '8px'
+                  }}>
+                    <AlertCircle size={14} />
+                    <span>{error}</span>
+                  </div>
+                )}
+              </div>
+
+              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                Unlock Surprise 🔑
+              </button>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Footer */}
