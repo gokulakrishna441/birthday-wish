@@ -79,24 +79,25 @@ function App() {
 
   // Trigger confetti celebration
   const triggerConfetti = () => {
-    const confettiColors = ['#ff4a93', '#8c52ff', '#ffbe3b', '#fb7185', '#38bdf8', '#a855f7']
-    const newConfetti = Array.from({ length: 80 }).map((_, idx) => ({
+    const confettiColors = ['#ff4a93', '#8c52ff', '#ffbe3b', '#fb7185', '#a855f7', '#ff6b6b']
+    const emojis = ['❤️', '💖', '💕', '💗', '💝', '✨']
+    const newConfetti = Array.from({ length: 90 }).map((_, idx) => ({
       id: Date.now() + idx,
       x: Math.random() * 100, // percentage left
       y: Math.random() * -20 - 5, // initial top position offset
       size: Math.random() * 10 + 6,
       color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
       delay: Math.random() * 2,
-      duration: Math.random() * 3 + 2,
+      duration: Math.random() * 3.5 + 2.5,
       rotation: Math.random() * 360,
-      shape: Math.random() > 0.5 ? 'circle' : 'square'
+      emoji: emojis[Math.floor(Math.random() * emojis.length)]
     }))
     setConfetti(newConfetti)
     
     // Clear confetti after animation completes
     setTimeout(() => {
       setConfetti([])
-    }, 6000)
+    }, 8000)
   }
 
   const handleSisterSubmit = async (e) => {
@@ -116,7 +117,7 @@ function App() {
     <div className="layout-container fade-in" style={{ position: 'relative' }}>
       
       {/* Floating particles background in main application */}
-      <FloatingParticles type="main" />
+      <FloatingParticles type="main" count={90} />
 
       {/* Floating wishes in background across all tabs */}
       <FloatingWishes wishes={wishes} />
@@ -190,7 +191,7 @@ function App() {
               <MemoryGallery />
             </section>
             <section className="scroll-section fade-in">
-              <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={true} />
+              <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={true} showForm={false} />
             </section>
           </main>
         </>

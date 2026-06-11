@@ -3,7 +3,7 @@ import { Plus, Wifi, WifiOff } from 'lucide-react'
 import { db, isFirebaseEnabled } from '../firebase'
 import { collection, addDoc } from 'firebase/firestore'
 
-function WishesWall({ wishes = [], setWishes, onCelebrate, showStaticGrid = true }) {
+function WishesWall({ wishes = [], setWishes, onCelebrate, showStaticGrid = true, showForm = true }) {
   const [newWish, setNewWish] = useState('')
   const [newSender, setNewSender] = useState('')
   const [wishColor, setWishColor] = useState('pink')
@@ -159,87 +159,89 @@ function WishesWall({ wishes = [], setWishes, onCelebrate, showStaticGrid = true
       </div>
 
       {/* Input Form */}
-      <form onSubmit={handleAddWish} className="glass-container" style={{ padding: '30px', maxWidth: '600px', margin: '0 auto 40px', textAlign: 'left' }}>
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '500', marginBottom: '6px', color: 'var(--text-primary)' }}>
-            Your Message
-          </label>
-          <textarea 
-            value={newWish}
-            onChange={(e) => setNewWish(e.target.value)}
-            placeholder="Type your warm birthday wish here..."
-            style={{
-              width: '100%',
-              height: '80px',
-              padding: '12px',
-              borderRadius: '12px',
-              background: 'rgba(0,0,0,0.2)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: 'white',
-              fontFamily: 'var(--font-sans)',
-              fontSize: '0.95rem',
-              resize: 'none',
-              outline: 'none'
-            }}
-            maxLength={150}
-            required
-          />
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-          <div>
+      {showForm && (
+        <form onSubmit={handleAddWish} className="glass-container" style={{ padding: '30px', maxWidth: '600px', margin: '0 auto 40px', textAlign: 'left' }}>
+          <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '500', marginBottom: '6px', color: 'var(--text-primary)' }}>
-              Your Name / Signature
+              Your Message
             </label>
-            <input 
-              type="text"
-              value={newSender}
-              onChange={(e) => setNewSender(e.target.value)}
-              placeholder="e.g. Bro, Mom, Friend"
+            <textarea 
+              value={newWish}
+              onChange={(e) => setNewWish(e.target.value)}
+              placeholder="Type your warm birthday wish here..."
               style={{
                 width: '100%',
-                padding: '10px 12px',
+                height: '80px',
+                padding: '12px',
                 borderRadius: '12px',
                 background: 'rgba(0,0,0,0.2)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 color: 'white',
                 fontFamily: 'var(--font-sans)',
                 fontSize: '0.95rem',
+                resize: 'none',
                 outline: 'none'
               }}
-              maxLength={30}
+              maxLength={150}
+              required
             />
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '500', marginBottom: '6px', color: 'var(--text-primary)' }}>
-              Card Theme Color
-            </label>
-            <div style={{ display: 'flex', gap: '8px', height: '40px', alignItems: 'center' }}>
-              {['pink', 'indigo', 'gold'].map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setWishColor(c)}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '50%',
-                    border: wishColor === c ? '2px solid white' : 'none',
-                    cursor: 'pointer',
-                    backgroundColor: c === 'pink' ? 'var(--accent-primary)' : c === 'indigo' ? 'var(--accent-secondary)' : 'var(--accent-gold)',
-                    boxShadow: wishColor === c ? '0 0 10px rgba(255,255,255,0.5)' : 'none'
-                  }}
-                />
-              ))}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '500', marginBottom: '6px', color: 'var(--text-primary)' }}>
+                Your Name / Signature
+              </label>
+              <input 
+                type="text"
+                value={newSender}
+                onChange={(e) => setNewSender(e.target.value)}
+                placeholder="e.g. Bro, Mom, Friend"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  background: 'rgba(0,0,0,0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: 'white',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '0.95rem',
+                  outline: 'none'
+                }}
+                maxLength={30}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '500', marginBottom: '6px', color: 'var(--text-primary)' }}>
+                Card Theme Color
+              </label>
+              <div style={{ display: 'flex', gap: '8px', height: '40px', alignItems: 'center' }}>
+                {['pink', 'indigo', 'gold'].map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setWishColor(c)}
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      border: wishColor === c ? '2px solid white' : 'none',
+                      cursor: 'pointer',
+                      backgroundColor: c === 'pink' ? 'var(--accent-primary)' : c === 'indigo' ? 'var(--accent-secondary)' : 'var(--accent-gold)',
+                      boxShadow: wishColor === c ? '0 0 10px rgba(255,255,255,0.5)' : 'none'
+                    }}
+                  />
+                ))}
+              </div>
             </div>
           </div>
-        </div>
 
-        <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-          <Plus size={18} /> Add Wish to Wall
-        </button>
-      </form>
+          <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+            <Plus size={18} /> Add Wish to Wall
+          </button>
+        </form>
+      )}
 
       {/* Display Board (Only if showStaticGrid is true) */}
       {showStaticGrid && (

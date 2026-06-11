@@ -12,18 +12,19 @@ function ConfettiOverlay({ confetti }) {
             position: 'fixed',
             left: `${c.x}%`,
             top: `${c.y}px`,
-            width: `${c.size}px`,
-            height: `${c.size}px`,
-            backgroundColor: c.color,
-            borderRadius: c.shape === 'circle' ? '50%' : '2px',
+            fontSize: `${c.size * 2.8}px`,
+            color: c.color,
             transform: `rotate(${c.rotation}deg)`,
-            opacity: 0.8,
+            opacity: 0.9,
             pointerEvents: 'none',
-            zIndex: 100,
+            zIndex: 99999,
             animation: `float-upwards ${c.duration}s linear forwards`,
-            animationDelay: `${c.delay}s`
+            animationDelay: `${c.delay}s`,
+            textShadow: '0 0 8px rgba(255, 74, 147, 0.4)'
           }}
-        />
+        >
+          {c.emoji || '❤️'}
+        </div>
       ))}
     </>
   )
