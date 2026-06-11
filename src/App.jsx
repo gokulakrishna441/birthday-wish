@@ -130,90 +130,99 @@ function App() {
   }
 
   return (
-    <div className="layout-container fade-in" style={{ position: 'relative' }}>
-      
-      {/* Floating particles background in main application */}
-      <FloatingParticles type="main" count={90} />
+    <>
+      <div className="layout-container fade-in" style={{ position: 'relative' }}>
+        
+        {/* Floating particles background in main application */}
+        <FloatingParticles type="main" count={90} />
 
-      {/* Floating wishes in background across all tabs */}
-      <FloatingWishes wishes={wishes} memories={memories} />
+        {/* Floating wishes in background across all tabs */}
+        <FloatingWishes wishes={wishes} memories={memories} />
 
-      {/* Confetti Rain Overlay */}
-      <ConfettiOverlay confetti={confetti} />
+        {/* Confetti Rain Overlay */}
+        <ConfettiOverlay confetti={confetti} />
 
-      {/* Sister Login Trigger (Subtle button in the top corner) */}
-      {userRole === 'visitor' && (
-        <button 
-          onClick={() => setShowPasscodeModal(true)}
-          style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: 'rgba(255,255,255,0.6)',
-            borderRadius: '20px',
-            padding: '8px 16px',
-            fontSize: '0.85rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: 'pointer',
-            transition: 'all 0.3s',
-            zIndex: 100
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = 'var(--accent-primary)'
-            e.currentTarget.style.borderColor = 'rgba(255, 74, 147, 0.3)'
-            e.currentTarget.style.background = 'rgba(255, 74, 147, 0.05)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'rgba(255,255,255,0.6)'
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
-            e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-          }}
-        >
-          <Key size={12} />
-          <span>Sister Mode 👑</span>
-        </button>
-      )}
+        {/* Sister Login Trigger (Subtle button in the top corner) */}
+        {userRole === 'visitor' && (
+          <button 
+            onClick={() => setShowPasscodeModal(true)}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: 'rgba(255,255,255,0.6)',
+              borderRadius: '20px',
+              padding: '8px 16px',
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              transition: 'all 0.3s',
+              zIndex: 100
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--accent-primary)'
+              e.currentTarget.style.borderColor = 'rgba(255, 74, 147, 0.3)'
+              e.currentTarget.style.background = 'rgba(255, 74, 147, 0.05)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'rgba(255,255,255,0.6)'
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+              e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+            }}
+          >
+            <Key size={12} />
+            <span>Sister Mode 👑</span>
+          </button>
+        )}
 
-      {/* Elegant Greeting Header */}
-      <GreetingHeader role={userRole} />
+        {/* Elegant Greeting Header */}
+        <GreetingHeader role={userRole} />
 
-      {/* Main Content Area: Vertical Scroll Flow */}
-      {userRole === 'visitor' ? (
-        <main style={{ marginTop: '20px', minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '60px' }}>
-          <section className="scroll-section fade-in">
-            <MemoryGallery />
-          </section>
-          <section className="scroll-section fade-in">
-            <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={false} />
-          </section>
-        </main>
-      ) : (
-        <>
-          {/* Custom Synthesized Chimes Music Player */}
-          <AudioPlayer />
-          
-          <main style={{ marginTop: '40px', minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '80px' }}>
-            <section className="scroll-section fade-in">
-              <Card3D />
-            </section>
-            <section className="scroll-section fade-in">
-              <VirtualCake onCelebrate={triggerConfetti} />
-            </section>
+        {/* Main Content Area: Vertical Scroll Flow */}
+        {userRole === 'visitor' ? (
+          <main style={{ marginTop: '20px', minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '60px' }}>
             <section className="scroll-section fade-in">
               <MemoryGallery />
             </section>
             <section className="scroll-section fade-in">
-              <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={true} showForm={false} />
+              <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={false} />
             </section>
           </main>
-        </>
-      )}
+        ) : (
+          <>
+            {/* Custom Synthesized Chimes Music Player */}
+            <AudioPlayer />
+            
+            <main style={{ marginTop: '40px', minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '80px' }}>
+              <section className="scroll-section fade-in">
+                <Card3D />
+              </section>
+              <section className="scroll-section fade-in">
+                <VirtualCake onCelebrate={triggerConfetti} />
+              </section>
+              <section className="scroll-section fade-in">
+                <MemoryGallery />
+              </section>
+              <section className="scroll-section fade-in">
+                <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={true} showForm={false} />
+              </section>
+            </main>
+          </>
+        )}
 
-      {/* Passcode Modal Overlay */}
+        {/* Footer */}
+        <footer style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', marginTop: '80px', padding: '30px 0', textAlign: 'center' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+            Made with <Heart size={12} style={{ color: 'var(--accent-primary)', fill: 'var(--accent-primary)' }} /> for a wonderful sister | Antigravity Design
+          </p>
+        </footer>
+      </div>
+
+      {/* Passcode Modal Overlay (outside layout-container to center relative to viewport) */}
       {showPasscodeModal && (
         <div style={{
           position: 'fixed',
@@ -302,14 +311,7 @@ function App() {
           </div>
         </div>
       )}
-
-      {/* Footer */}
-      <footer style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', marginTop: '80px', padding: '30px 0', textAlign: 'center' }}>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-          Made with <Heart size={12} style={{ color: 'var(--accent-primary)', fill: 'var(--accent-primary)' }} /> for a wonderful sister | Antigravity Design
-        </p>
-      </footer>
-    </div>
+    </>
   )
 }
 
