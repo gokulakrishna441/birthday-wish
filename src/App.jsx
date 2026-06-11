@@ -79,7 +79,7 @@ function App() {
     }
   }, [])
 
-  // Fetch memory image URLs for floating wishes avatars
+  // Fetch memory image URLs for floating wishes avatar
   useEffect(() => {
     if (isFirebaseEnabled) {
       const memoriesRef = collection(db, 'memories')
@@ -110,7 +110,7 @@ function App() {
       emoji: emojis[Math.floor(Math.random() * emojis.length)]
     }))
     setConfetti(newConfetti)
-    
+
     // Clear confetti after animation completes
     setTimeout(() => {
       setConfetti([])
@@ -133,7 +133,7 @@ function App() {
   return (
     <>
       <div className="layout-container fade-in" style={{ position: 'relative' }}>
-        
+
         {/* Floating particles background in main application */}
         <FloatingParticles type="main" count={90} />
 
@@ -145,7 +145,7 @@ function App() {
 
         {/* Sister Login Trigger (Subtle button in the top corner) */}
         {userRole === 'visitor' && (
-          <button 
+          <button
             onClick={() => setShowPasscodeModal(true)}
             style={{
               position: 'absolute',
@@ -197,7 +197,7 @@ function App() {
           <>
             {/* Custom Synthesized Chimes Music Player */}
             <AudioPlayer />
-            
+
             <main style={{ marginTop: '40px', minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '80px' }}>
               <section className="scroll-section fade-in">
                 <Card3D />
@@ -246,9 +246,9 @@ function App() {
               animation: shake 0.3s ease-in-out;
             }
           `}</style>
-          
+
           <div className="glass-container fade-in" style={{ padding: '30px', maxWidth: '400px', width: '100%', position: 'relative' }}>
-            <button 
+            <button
               onClick={() => { setShowPasscodeModal(false); setError(''); setCode(''); }}
               style={{
                 position: 'absolute',
@@ -269,7 +269,7 @@ function App() {
             </p>
             <form onSubmit={handleSisterSubmit}>
               <div style={{ marginBottom: '20px' }}>
-                <input 
+                <input
                   type="password"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
@@ -289,7 +289,7 @@ function App() {
                   }}
                   className={error ? 'shake-error' : ''}
                 />
-                
+
                 {error && (
                   <div style={{
                     display: 'flex',
