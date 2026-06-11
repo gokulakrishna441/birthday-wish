@@ -1,5 +1,14 @@
 
-function FloatingWishes({ wishes = [] }) {
+const DEFAULT_IMAGES = [
+  'https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?w=100&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=100&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=100&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=100&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1464349608316-2b47b27f3b47?w=100&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1504196606672-aef5c9cefc92?w=100&auto=format&fit=crop&q=60'
+]
+
+function FloatingWishes({ wishes = [], memories = [] }) {
   const activeWishes = wishes.slice(0, 15)
   
   if (activeWishes.length === 0) return null
@@ -11,63 +20,29 @@ function FloatingWishes({ wishes = [] }) {
       left: 0,
       width: '100vw',
       height: '100vh',
-      pointerEvents: 'none', // Let user click items underneath
-      zIndex: 1, // Behind main content but readable
+      pointerEvents: 'none',
+      zIndex: 1, 
       overflow: 'hidden'
     }}>
       <style>{`
-        @keyframes zigZagDriftRight {
+        @keyframes verticalFloat {
           0% {
-            transform: translateX(-150px) translateY(0) rotate(-4deg);
+            transform: translateY(105vh) rotate(0deg);
             opacity: 0;
           }
           10% {
-            opacity: 0.6;
-          }
-          25% {
-            transform: translateX(25vw) translateY(-35px) rotate(3deg);
-          }
-          50% {
-            transform: translateX(50vw) translateY(35px) rotate(-3deg);
-          }
-          75% {
-            transform: translateX(75vw) translateY(-35px) rotate(3deg);
+            opacity: 0.85;
           }
           90% {
-            opacity: 0.6;
+            opacity: 0.85;
           }
           100% {
-            transform: translateX(105vw) translateY(0) rotate(-4deg);
-            opacity: 0;
-          }
-        }
-        @keyframes zigZagDriftLeft {
-          0% {
-            transform: translateX(105vw) translateY(0) rotate(4deg);
-            opacity: 0;
-          }
-          10% {
-            opacity: 0.6;
-          }
-          25% {
-            transform: translateX(75vw) translateY(35px) rotate(-3deg);
-          }
-          50% {
-            transform: translateX(50vw) translateY(-35px) rotate(4deg);
-          }
-          75% {
-            transform: translateX(25vw) translateY(35px) rotate(-3deg);
-          }
-          90% {
-            opacity: 0.6;
-          }
-          100% {
-            transform: translateX(-150px) translateY(0) rotate(4deg);
+            transform: translateY(-25vh) rotate(5deg);
             opacity: 0;
           }
         }
         .bg-card-wrapper {
-          pointer-events: auto; /* Re-enable cursor events on the cards */
+          pointer-events: auto;
           transition: z-index 0s;
         }
         .bg-card-wrapper:hover {
@@ -81,6 +56,9 @@ function FloatingWishes({ wishes = [] }) {
           border-color: rgba(255, 255, 255, 0.4) !important;
           box-shadow: 0 15px 40px rgba(0,0,0,0.6), 0 0 25px var(--glow-color) !important;
         }
+        .bg-floating-card {
+          width: 195px;
+        }
         .bg-floating-card.color-pink {
           --glow-color: var(--accent-primary);
         }
@@ -90,27 +68,40 @@ function FloatingWishes({ wishes = [] }) {
         .bg-floating-card.color-gold {
           --glow-color: var(--accent-gold);
         }
+        @media (max-width: 1024px) {
+          .bg-floating-card {
+            width: 140px;
+          }
+        }
+        @media (max-width: 480px) {
+          .bg-card-wrapper {
+            display: none !important;
+          }
+        }
       `}</style>
 
       {activeWishes.map((w, index) => {
-        // Calculate stable variations based on index
-        const yPos = 8 + ((index * 23) % 78) // Spread vertically 8% - 86%
-        const speed = 25 + ((index * 7) % 15) // 25s - 40s drift speed
-        const delay = (index * 5) % 35 // Staggered delays
-        const scale = 0.85 + ((index * 2) % 4) * 0.05 // Scale 0.85 - 1.04
-        const isLeftToRight = index % 2 === 0
+        // Stagger positions vertically and place strictly in side gutters
+        const speed = 25 + ((index * 6) % 15) // 25s - 40s travel speed
+        const delay = (index * 7) % 35
+        const scale = 0.85 + ((index * 2) % 4) * 0.05
+        const isLeftGutter = index % 2 === 0
+        const gutterOffset = 1.5 + ((index * 3) % 9) // 1.5% to 10.5% viewport width offsets
+
+        // Choose picture source (user uploaded or default)
+        const imgUrl = (memories && memories.length > 0)
+          ? memories[index % memories.length]
+          : DEFAULT_IMAGES[index % DEFAULT_IMAGES.length]
 
         return (
           <div
             key={w.id}
             style={{
               position: 'absolute',
-              top: `${yPos}vh`,
-              left: isLeftToRight ? 0 : 'auto',
-              right: isLeftToRight ? 'auto' : 0,
-              width: '260px',
-              animation: `${isLeftToRight ? 'zigZagDriftRight' : 'zigZagDriftLeft'} ${speed}s linear infinite`,
-              // Start drifting immediately mid-animation on mount using negative delay
+              bottom: 0,
+              left: isLeftGutter ? `${gutterOffset}vw` : 'auto',
+              right: isLeftGutter ? 'auto' : `${gutterOffset}vw`,
+              animation: `verticalFloat ${speed}s linear infinite`,
               animationDelay: `-${delay}s`,
               zIndex: 2
             }}
@@ -119,44 +110,63 @@ function FloatingWishes({ wishes = [] }) {
             <div
               className={`bg-floating-card color-${w.color}`}
               style={{
-                padding: '16px 20px',
+                padding: '12px 14px',
                 borderRadius: '16px',
                 textAlign: 'left',
                 cursor: 'pointer',
-                background: 'rgba(20, 11, 45, 0.65)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'rgba(20, 11, 45, 0.92)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
                 borderLeft: `4px solid ${
                   w.color === 'pink' ? 'var(--accent-primary)' : w.color === 'indigo' ? 'var(--accent-secondary)' : 'var(--accent-gold)'
                 }`,
-                backdropFilter: 'blur(6px)',
-                opacity: 0.55,
+                backdropFilter: 'blur(8px)',
+                opacity: 0.85,
                 transform: `scale(${scale})`,
-                transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.2), opacity 0.3s, background 0.3s, border-color 0.3s, box-shadow 0.3s'
+                transition: 'transform 0.3s, opacity 0.3s, background 0.3s, border-color 0.3s, box-shadow 0.3s',
+                display: 'flex',
+                gap: '10px',
+                alignItems: 'center'
               }}
             >
-              <p style={{ 
-                fontSize: '0.85rem', 
-                fontStyle: 'italic', 
-                marginBottom: '10px', 
-                color: '#ece8ff', 
-                lineHeight: '1.4',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: '-webkit-box',
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: 'vertical'
-              }}>
-                "{w.text}"
-              </p>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>From</span>
-                <span style={{ 
-                  fontSize: '0.75rem', 
-                  fontWeight: '600', 
-                  color: w.color === 'pink' ? 'var(--accent-primary)' : w.color === 'indigo' ? 'var(--accent-secondary)' : 'var(--accent-gold)'
+              <img 
+                src={imgUrl} 
+                alt="wish item" 
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  flexShrink: 0
+                }}
+              />
+              <div style={{ flexGrow: 1, minWidth: 0 }}>
+                <p style={{ 
+                  fontSize: '0.72rem', 
+                  fontStyle: 'italic', 
+                  marginBottom: '2px', 
+                  color: '#ffffff',
+                  lineHeight: '1.3',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: 'vertical'
                 }}>
-                  - {w.sender}
-                </span>
+                  "{w.text}"
+                </p>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ 
+                    fontSize: '0.65rem', 
+                    fontWeight: '600', 
+                    color: w.color === 'pink' ? 'var(--accent-primary)' : w.color === 'indigo' ? 'var(--accent-secondary)' : 'var(--accent-gold)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    - {w.sender}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

@@ -27,6 +27,7 @@ function App() {
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [confetti, setConfetti] = useState([])
+  const [memories, setMemories] = useState([])
   const [wishes, setWishes] = useState(() => {
     if (!isFirebaseEnabled) {
       const saved = localStorage.getItem('birthday_wishes')
@@ -77,6 +78,21 @@ function App() {
     }
   }, [])
 
+  // Fetch memory image URLs for floating wishes avatars
+  useEffect(() => {
+    if (isFirebaseEnabled) {
+      const memoriesRef = collection(db, 'memories')
+      const q = query(memoriesRef, orderBy('timestamp', 'desc'))
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const list = snapshot.docs.map(doc => doc.data().src).filter(Boolean)
+        setMemories(list)
+      }, (error) => {
+        console.error('Failed to load memories in App:', error)
+      })
+      return () => unsubscribe()
+    }
+  }, [])
+
   // Trigger confetti celebration
   const triggerConfetti = () => {
     const confettiColors = ['#ff4a93', '#8c52ff', '#ffbe3b', '#fb7185', '#a855f7', '#ff6b6b']
@@ -120,7 +136,7 @@ function App() {
       <FloatingParticles type="main" count={90} />
 
       {/* Floating wishes in background across all tabs */}
-      <FloatingWishes wishes={wishes} />
+      <FloatingWishes wishes={wishes} memories={memories} />
 
       {/* Confetti Rain Overlay */}
       <ConfettiOverlay confetti={confetti} />
