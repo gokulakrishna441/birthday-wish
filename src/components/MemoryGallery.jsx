@@ -6,6 +6,59 @@ import { db, storage, isFirebaseEnabled } from '../firebase'
 import { collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 
+const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.7) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = (event) => {
+      const img = new Image()
+      img.src = event.target.result
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas')
+          let width = img.width
+          let height = img.height
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width)
+              width = maxWidth
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height)
+              height = maxHeight
+            }
+          }
+
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0, width, height)
+
+          const dataUrl = canvas.toDataURL('image/jpeg', quality)
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve({ blob, dataUrl })
+            } else {
+              resolve({ blob: file, dataUrl })
+            }
+          }, 'image/jpeg', quality)
+        } catch (e) {
+          console.error("Compression error, using original file", e)
+          resolve({ blob: file, dataUrl: event.target.result })
+        }
+      }
+      img.onerror = () => {
+        resolve({ blob: file, dataUrl: event.target.result })
+      }
+    }
+    reader.onerror = () => {
+      resolve({ blob: file, dataUrl: null })
+    }
+  })
+}
+
 function MemoryGallery() {
   const [userImages, setUserImages] = useState(() => {
     if (!isFirebaseEnabled) {
@@ -61,25 +114,43 @@ function MemoryGallery() {
     if (isFirebaseEnabled) {
       try {
         const timestamp = Date.now()
-        // 1. Upload file to Firebase Storage
-        const filePath = `memories/${timestamp}_${file.name}`
-        const fileRef = storageRef(storage, filePath)
-        await uploadBytes(fileRef, file)
-        const downloadUrl = await getDownloadURL(fileRef)
+        
+        // 1. Compress image to reduce file size (toBlob for storage, dataUrl for base64 fallback)
+        const { blob, dataUrl } = await compressImage(file)
+        
+        let downloadUrl = ''
+        let filePath = ''
+        let storageSuccess = false
 
-        // 2. Save metadata to Firestore
+        try {
+          // 2. Try to upload file to Firebase Storage
+          filePath = `memories/${timestamp}_${file.name}`
+          const fileRef = storageRef(storage, filePath)
+          await uploadBytes(fileRef, blob)
+          downloadUrl = await getDownloadURL(fileRef)
+          storageSuccess = true
+        } catch (storageErr) {
+          console.warn('Firebase Storage upload failed (possibly CORS or Rules). Falling back to direct database upload.', storageErr)
+        }
+
+        // 3. Save metadata to Firestore (use base64 dataUrl if storage failed)
         const newImage = {
-          src: downloadUrl,
-          storagePath: filePath,
+          src: storageSuccess ? downloadUrl : dataUrl,
+          storagePath: storageSuccess ? filePath : null,
           title: 'Special Memory',
           description: 'A beautiful moment added to the gallery.',
           timestamp
         }
+
+        if (!newImage.src) {
+          throw new Error('Failed to process image content')
+        }
+
         const memoriesRef = collection(db, 'memories')
         await addDoc(memoriesRef, newImage)
       } catch (err) {
         console.error('Failed to upload image to Firebase:', err)
-        alert('Failed to upload image to Cloud Storage. Please verify Firestore Database Rules and Storage Rules.')
+        alert('Failed to upload image. Please verify your Firestore Database Rules.')
       } finally {
         setUploading(false)
       }
