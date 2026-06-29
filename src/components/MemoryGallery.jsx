@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Upload, Trash2, Loader2, ImagePlus, ChevronDown, ChevronUp } from 'lucide-react'
+import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc } from 'firebase/firestore'
+import { db, isFirebaseEnabled } from '../firebase'
 import birthdayBg from '../assets/birthday_bg.png'
 import memoryBg from '../assets/memory_bg.png'
 
@@ -25,7 +27,7 @@ export const SISTER_IMAGES = [
   }
 ]
 
-// IndexedDB Helper implementation for zero-config offline storage
+// IndexedDB Helper implementation for offline fallback storage
 const DB_NAME = 'sister_memories_db'
 const STORE_NAME = 'memories'
 
@@ -81,8 +83,8 @@ const deleteLocalImage = async (id) => {
   })
 }
 
-// Client-side canvas image compressor
-const compressImage = (file, maxWidth = 900, maxHeight = 900, quality = 0.75) => {
+// Client-side canvas image compressor (Generates optimized light-weight base64 JPEGs)
+const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.7) => {
   return new Promise((resolve) => {
     const reader = new FileReader()
     reader.readAsDataURL(file)
@@ -112,6 +114,7 @@ const compressImage = (file, maxWidth = 900, maxHeight = 900, quality = 0.75) =>
           const ctx = canvas.getContext('2d')
           ctx.drawImage(img, 0, 0, width, height)
 
+          // Compress to lightweight JPEG base64 string
           const dataUrl = canvas.toDataURL('image/jpeg', quality)
           resolve(dataUrl)
         } catch (e) {
@@ -126,18 +129,37 @@ const compressImage = (file, maxWidth = 900, maxHeight = 900, quality = 0.75) =>
 
 function MemoryGallery() {
   const [localImages, setLocalImages] = useState([])
+  const [cloudImages, setCloudImages] = useState([])
   const [showUploader, setShowUploader] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [progressText, setProgressText] = useState('')
   const fileInputRef = useRef(null)
 
-  // Load IndexedDB photos on component mount
+  // Load IndexedDB photos on mount
   useEffect(() => {
     const loadImages = async () => {
       const list = await getLocalImages()
       setLocalImages(list)
     }
     loadImages()
+  }, [])
+
+  // Listen to cloud photos from Firestore
+  useEffect(() => {
+    if (isFirebaseEnabled && db) {
+      const memoriesRef = collection(db, 'memories')
+      const q = query(memoriesRef, orderBy('timestamp', 'desc'))
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const list = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        setCloudImages(list)
+      }, (error) => {
+        console.error('Failed to load cloud memories:', error)
+      })
+      return () => unsubscribe()
+    }
   }, [])
 
   const handleBulkUpload = async (e) => {
@@ -149,38 +171,69 @@ function MemoryGallery() {
 
     for (const file of files) {
       count++
-      setProgressText(`Compressing photo ${count} of ${files.length}...`)
+      
       try {
-        const dataUrl = await compressImage(file)
-        if (dataUrl) {
-          const newPhoto = {
-            id: `local-${Date.now()}-${Math.random()}`,
-            src: dataUrl,
-            title: 'Special Memory',
-            description: 'A beautiful moment added locally.',
-            timestamp: Date.now()
+        if (isFirebaseEnabled && db) {
+          setProgressText(`Uploading photo ${count} of ${files.length} to Cloud database...`)
+          
+          // 1. Compress image locally first to keep base64 string under 100KB
+          const dataUrl = await compressImage(file)
+          
+          if (dataUrl) {
+            // 2. Save directly as a document in Firestore (no storage bucket required!)
+            const memoriesRef = collection(db, 'memories')
+            await addDoc(memoriesRef, {
+              src: dataUrl,
+              title: 'Special Memory',
+              description: 'A beautiful moment saved in the cloud.',
+              timestamp: Date.now()
+            })
           }
-          await saveLocalImage(newPhoto)
+        } else {
+          setProgressText(`Saving photo ${count} of ${files.length} to Local DB...`)
+          // Offline IndexedDB backup
+          const dataUrl = await compressImage(file)
+          if (dataUrl) {
+            const newPhoto = {
+              id: `local-${Date.now()}-${Math.random()}`,
+              src: dataUrl,
+              title: 'Special Memory',
+              description: 'A beautiful moment added locally.',
+              timestamp: Date.now()
+            }
+            await saveLocalImage(newPhoto)
+          }
         }
       } catch (err) {
-        console.error('Error saving image:', err)
+        console.error('Error uploading photo:', err)
       }
     }
 
+    // Refresh local images list in case fallback was used
     const list = await getLocalImages()
     setLocalImages(list)
     setIsProcessing(false)
     setProgressText('')
     
-    // Dispatch window event so App.jsx floating wishes can reload
+    // Dispatch window event so App.jsx background floats can sync
     window.dispatchEvent(new Event('memories-updated'))
   }
 
-  const handleDeleteLocal = async (id) => {
+  const handleDeletePhoto = async (photo) => {
     if (confirm('Are you sure you want to delete this memory?')) {
-      await deleteLocalImage(id)
-      const list = await getLocalImages()
-      setLocalImages(list)
+      if (photo.id.toString().startsWith('local-')) {
+        await deleteLocalImage(photo.id)
+        const list = await getLocalImages()
+        setLocalImages(list)
+      } else {
+        if (isFirebaseEnabled && db) {
+          try {
+            await deleteDoc(doc(db, 'memories', photo.id))
+          } catch (err) {
+            console.error('Failed to delete cloud memory:', err)
+          }
+        }
+      }
       window.dispatchEvent(new Event('memories-updated'))
     }
   }
@@ -200,7 +253,7 @@ function MemoryGallery() {
     }
   ]
 
-  const allImages = [...defaultImages, ...SISTER_IMAGES, ...localImages]
+  const allImages = [...defaultImages, ...SISTER_IMAGES, ...cloudImages, ...localImages]
 
   return (
     <div className="fade-in">
@@ -300,6 +353,7 @@ function MemoryGallery() {
       <div className="gallery-grid">
         {allImages.map((img, idx) => {
           const angle = (idx % 2 === 0 ? -1.5 : 1.5) * 1.2;
+          const isUserUploaded = img.id.toString().startsWith('local-') || !['default1', 'default2', 'sister1', 'sister2', 'sister3'].includes(img.id.toString());
           return (
             <div 
               key={img.id} 
@@ -319,12 +373,12 @@ function MemoryGallery() {
                 e.currentTarget.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.4)'
               }}
             >
-              {/* Show delete button if it is a local user-uploaded image */}
-              {img.id.toString().startsWith('local-') && (
+              {/* Show delete button if it is a user-uploaded image */}
+              {isUserUploaded && (
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteLocal(img.id);
+                    handleDeletePhoto(img);
                   }}
                   style={{
                     position: 'absolute',
@@ -357,7 +411,6 @@ function MemoryGallery() {
                 alt={img.title} 
                 className="gallery-image"
                 onError={(e) => {
-                  // If a local image fails or is missing, show fallback illustration
                   e.target.src = birthdayBg
                 }}
               />

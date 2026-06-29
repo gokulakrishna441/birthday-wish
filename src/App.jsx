@@ -79,16 +79,49 @@ function App() {
     }
   }, [])
 
-  // Sync floating background wish avatars with local IndexedDB uploaded photos
+  // Sync floating background wish avatars with local and cloud memories
   useEffect(() => {
-    const loadLocalMemories = async () => {
-      const list = await getLocalImages()
-      const urls = [...SISTER_IMAGES.map(img => img.src), ...list.map(img => img.src)]
+    let unsubscribeCloud = null
+    let localUrls = []
+    let cloudUrls = []
+
+    const updateAllMemories = () => {
+      const urls = [
+        ...SISTER_IMAGES.map(img => img.src),
+        ...cloudUrls,
+        ...localUrls
+      ]
       setMemories(urls)
     }
-    loadLocalMemories()
-    window.addEventListener('memories-updated', loadLocalMemories)
-    return () => window.removeEventListener('memories-updated', loadLocalMemories)
+
+    const loadLocal = async () => {
+      const list = await getLocalImages()
+      localUrls = list.map(img => img.src)
+      updateAllMemories()
+    }
+
+    loadLocal()
+
+    if (isFirebaseEnabled) {
+      const memoriesRef = collection(db, 'memories')
+      const q = query(memoriesRef, orderBy('timestamp', 'desc'))
+      unsubscribeCloud = onSnapshot(q, (snapshot) => {
+        cloudUrls = snapshot.docs.map(doc => doc.data().src)
+        updateAllMemories()
+      }, (error) => {
+        console.error('Failed to load cloud memories for background:', error)
+      })
+    }
+
+    const handleLocalUpdate = () => {
+      loadLocal()
+    }
+
+    window.addEventListener('memories-updated', handleLocalUpdate)
+    return () => {
+      if (unsubscribeCloud) unsubscribeCloud()
+      window.removeEventListener('memories-updated', handleLocalUpdate)
+    }
   }, [])
 
   // Trigger confetti celebration
