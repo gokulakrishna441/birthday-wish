@@ -9,12 +9,12 @@ import GreetingHeader from './components/GreetingHeader'
 import AudioPlayer from './components/AudioPlayer'
 import Card3D from './components/Card3D'
 import VirtualCake from './components/VirtualCake'
-import MemoryGallery from './components/MemoryGallery'
+import MemoryGallery, { SISTER_IMAGES, getLocalImages } from './components/MemoryGallery'
 import WishesWall from './components/WishesWall'
 import { db, isFirebaseEnabled, logVisit } from './firebase'
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore'
 
-const SISTER_PASSCODE = (import.meta.env.VITE_SISTER_PASSCODE || 'SISTER').toUpperCase().trim()
+const SISTER_PASSCODE = (import.meta.env.VITE_SISTER_PASSCODE || 'SubhaGokula').toUpperCase().trim()
 
 const DEFAULT_WISHES = [
   { id: 'default1', text: "May your year be filled with laughter, endless joy, and wonderful surprises! 💖", sender: "With Love", color: "pink", timestamp: 1 },
@@ -28,7 +28,7 @@ function App() {
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [confetti, setConfetti] = useState([])
-  const [memories, setMemories] = useState([])
+  const [memories, setMemories] = useState(() => SISTER_IMAGES.map(img => img.src))
   const [wishes, setWishes] = useState(() => {
     if (!isFirebaseEnabled) {
       const saved = localStorage.getItem('birthday_wishes')
@@ -79,19 +79,16 @@ function App() {
     }
   }, [])
 
-  // Fetch memory image URLs for floating wishes avatar
+  // Sync floating background wish avatars with local IndexedDB uploaded photos
   useEffect(() => {
-    if (isFirebaseEnabled) {
-      const memoriesRef = collection(db, 'memories')
-      const q = query(memoriesRef, orderBy('timestamp', 'desc'))
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const list = snapshot.docs.map(doc => doc.data().src).filter(Boolean)
-        setMemories(list)
-      }, (error) => {
-        console.error('Failed to load memories in App:', error)
-      })
-      return () => unsubscribe()
+    const loadLocalMemories = async () => {
+      const list = await getLocalImages()
+      const urls = [...SISTER_IMAGES.map(img => img.src), ...list.map(img => img.src)]
+      setMemories(urls)
     }
+    loadLocalMemories()
+    window.addEventListener('memories-updated', loadLocalMemories)
+    return () => window.removeEventListener('memories-updated', loadLocalMemories)
   }, [])
 
   // Trigger confetti celebration
@@ -147,33 +144,7 @@ function App() {
         {userRole === 'visitor' && (
           <button
             onClick={() => setShowPasscodeModal(true)}
-            style={{
-              position: 'absolute',
-              top: '20px',
-              right: '20px',
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: 'rgba(255,255,255,0.6)',
-              borderRadius: '20px',
-              padding: '8px 16px',
-              fontSize: '0.85rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              transition: 'all 0.3s',
-              zIndex: 100
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = 'var(--accent-primary)'
-              e.currentTarget.style.borderColor = 'rgba(255, 74, 147, 0.3)'
-              e.currentTarget.style.background = 'rgba(255, 74, 147, 0.05)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'rgba(255,255,255,0.6)'
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
-              e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-            }}
+            className="sister-mode-btn"
           >
             <Key size={12} />
             <span>Sister Mode 👑</span>
@@ -183,15 +154,15 @@ function App() {
         {/* Elegant Greeting Header */}
         <GreetingHeader role={userRole} />
 
-        {/* Main Content Area: Vertical Scroll Flow */}
+        {/* Main Content Area: Split Dashboard Grid */}
         {userRole === 'visitor' ? (
-          <main style={{ marginTop: '20px', minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '60px' }}>
-            <section className="scroll-section fade-in">
+          <main className="main-dashboard fade-in" style={{ minHeight: '400px' }}>
+            <div className="dashboard-column">
+              <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={true} />
+            </div>
+            <div className="dashboard-column">
               <MemoryGallery />
-            </section>
-            <section className="scroll-section fade-in">
-              <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={false} />
-            </section>
+            </div>
           </main>
         ) : (
           <>
@@ -200,16 +171,20 @@ function App() {
 
             <main style={{ marginTop: '40px', minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '80px' }}>
               <section className="scroll-section fade-in">
-                <Card3D />
+                <Card3D memories={memories} />
               </section>
               <section className="scroll-section fade-in">
                 <VirtualCake onCelebrate={triggerConfetti} />
               </section>
               <section className="scroll-section fade-in">
-                <MemoryGallery />
-              </section>
-              <section className="scroll-section fade-in">
-                <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={true} showForm={false} />
+                <div className="main-dashboard">
+                  <div className="dashboard-column">
+                    <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={true} showForm={false} />
+                  </div>
+                  <div className="dashboard-column">
+                    <MemoryGallery />
+                  </div>
+                </div>
               </section>
             </main>
           </>
@@ -227,7 +202,12 @@ function App() {
       {showPasscodeModal && createPortal(
         <div style={{
           position: 'fixed',
-          inset: 0,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100%',
+          height: '100%',
           background: 'rgba(10,5,24,0.85)',
           backdropFilter: 'blur(8px)',
           display: 'flex',

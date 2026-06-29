@@ -8,7 +8,7 @@ function FloatingParticles({ type = 'main', count = 25 }) {
       id: idx,
       size: Math.random() * 8 + 4,
       left: Math.random() * 100,
-      delay: Math.random() * 8,
+      delay: -Math.random() * 8,
       duration: Math.random() * 4 + 4, // 4s - 8s duration (faster!)
       particleType: Math.random() > 0.5 ? 'heart' : 'other'
     }))

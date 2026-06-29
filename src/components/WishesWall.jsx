@@ -1,59 +1,100 @@
 import { useState, useEffect } from 'react'
-import { Plus, Wifi, WifiOff } from 'lucide-react'
+import { Plus, Wifi, WifiOff, Camera, Loader2, Trash2 } from 'lucide-react'
 import { db, isFirebaseEnabled } from '../firebase'
 import { collection, addDoc } from 'firebase/firestore'
 
-function WishesWall({ wishes = [], setWishes, onCelebrate, showStaticGrid = true, showForm = true }) {
+// Canvas image compressor for wish attachments
+const compressImage = (file, maxWidth = 600, maxHeight = 600, quality = 0.7) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = (event) => {
+      const img = new Image()
+      img.src = event.target.result
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas')
+          let width = img.width
+          let height = img.height
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width)
+              width = maxWidth
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height)
+              height = maxHeight
+            }
+          }
+
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0, width, height)
+
+          const dataUrl = canvas.toDataURL('image/jpeg', quality)
+          resolve(dataUrl)
+        } catch (e) {
+          resolve(event.target.result)
+        }
+      }
+      img.onerror = () => resolve(event.target.result)
+    }
+    reader.onerror = () => resolve(null)
+  })
+}
+
+function WishesWall({ wishes, setWishes, onCelebrate, showStaticGrid = true, showForm = true }) {
   const [newWish, setNewWish] = useState('')
   const [newSender, setNewSender] = useState('')
   const [wishColor, setWishColor] = useState('pink')
   const [hearts, setHearts] = useState([])
 
-  // LocalStorage update sync (only if Firebase is disabled)
-  useEffect(() => {
-    if (!isFirebaseEnabled && wishes.length > 0) {
-      localStorage.setItem('birthday_wishes', JSON.stringify(wishes))
-    }
-  }, [wishes])
+  // Image upload states
+  const [wishImage, setWishImage] = useState(null)
+  const [isCompressing, setIsCompressing] = useState(false)
 
   const handleAddWish = async (e) => {
     e.preventDefault()
     if (!newWish.trim()) return
 
     const wishText = newWish.trim()
-    const senderText = newSender.trim() || "Anonymous Friend"
+    const senderText = newSender.trim() || 'Anonymous'
 
     if (isFirebaseEnabled) {
-      const wish = {
-        text: wishText,
-        sender: senderText,
-        color: wishColor,
-        timestamp: Date.now()
-      }
       try {
         const wishesRef = collection(db, 'wishes')
-        await addDoc(wishesRef, wish)
+        await addDoc(wishesRef, {
+          text: wishText,
+          sender: senderText,
+          color: wishColor,
+          image: wishImage,
+          timestamp: Date.now()
+        })
         setNewWish('')
         setNewSender('')
+        setWishImage(null)
         if (onCelebrate) {
           onCelebrate()
         }
-      } catch (err) {
-        console.error('Failed to submit wish to Firestore:', err)
-        alert('Failed to submit wish to Cloud Firestore. Please verify your Firestore Database Rules.')
+      } catch (error) {
+        console.error('Failed to post wish to Firestore:', error)
       }
     } else {
-      // LocalStorage Fallback
       const wish = {
-        id: Date.now(),
+        id: Date.now().toString(),
         text: wishText,
         sender: senderText,
         color: wishColor,
+        image: wishImage,
         timestamp: Date.now()
       }
       setWishes(prev => [wish, ...prev])
       setNewWish('')
       setNewSender('')
+      setWishImage(null)
       if (onCelebrate) {
         onCelebrate()
       }
@@ -61,7 +102,6 @@ function WishesWall({ wishes = [], setWishes, onCelebrate, showStaticGrid = true
   }
 
   const handleHoverCard = (e, color) => {
-    // Spawn 2 floating hearts around the cursor coordinates
     const newHearts = Array.from({ length: 2 }).map((_, i) => ({
       id: `${Date.now()}-${i}-${Math.random()}`,
       x: e.clientX + (Math.random() * 40 - 20),
@@ -128,10 +168,9 @@ function WishesWall({ wishes = [], setWishes, onCelebrate, showStaticGrid = true
       {/* Main Wishes Wall View */}
       <div style={{ textAlign: 'center', marginBottom: '30px' }}>
         <h2 style={{ fontSize: '2rem', marginBottom: '8px' }}>The Wishes Wall 💌</h2>
-        <p style={{ color: 'var(--text-secondary)' }}>Leave a sweet message, customize the theme, and post it to the board!</p>
+        <p style={{ color: 'var(--text-secondary)' }}>Leave a sweet message, attach a photo, and post it to the board!</p>
         
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginTop: '12px' }}>
-          {/* Connection status indicator */}
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -160,7 +199,7 @@ function WishesWall({ wishes = [], setWishes, onCelebrate, showStaticGrid = true
 
       {/* Input Form */}
       {showForm && (
-        <form onSubmit={handleAddWish} className="glass-container" style={{ padding: '30px', maxWidth: '600px', margin: '0 auto 40px', textAlign: 'left' }}>
+        <form onSubmit={handleAddWish} className="glass-container responsive-card" style={{ maxWidth: '600px', margin: '0 auto 40px', textAlign: 'left' }}>
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '500', marginBottom: '6px', color: 'var(--text-primary)' }}>
               Your Message
@@ -187,7 +226,7 @@ function WishesWall({ wishes = [], setWishes, onCelebrate, showStaticGrid = true
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '16px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '500', marginBottom: '6px', color: 'var(--text-primary)' }}>
                 Your Name / Signature
@@ -237,6 +276,98 @@ function WishesWall({ wishes = [], setWishes, onCelebrate, showStaticGrid = true
             </div>
           </div>
 
+          {/* Photo attachment widget */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '500', marginBottom: '6px', color: 'var(--text-primary)' }}>
+              Attach a Photo (Optional)
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <input 
+                type="file" 
+                accept="image/*" 
+                id="wish-photo-upload"
+                onChange={async (e) => {
+                  const file = e.target.files[0]
+                  if (!file) return
+                  setIsCompressing(true)
+                  try {
+                    const dataUrl = await compressImage(file)
+                    setWishImage(dataUrl)
+                  } catch (err) {
+                    console.error('Error compressing wish photo:', err)
+                  }
+                  setIsCompressing(false)
+                }}
+                style={{ display: 'none' }}
+              />
+              <button
+                type="button"
+                onClick={() => document.getElementById('wish-photo-upload').click()}
+                className="btn btn-secondary"
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '25px',
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                disabled={isCompressing}
+              >
+                {isCompressing ? (
+                  <Loader2 size={14} className="spinning-loader" style={{ animation: 'spin 1s linear infinite' }} />
+                ) : (
+                  <Camera size={14} style={{ color: 'var(--accent-gold)' }} />
+                )}
+                <span>{wishImage ? 'Change Photo' : 'Attach Photo 📸'}</span>
+              </button>
+
+              {wishImage && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+                  <img 
+                    src={wishImage} 
+                    alt="Preview" 
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '8px',
+                      objectFit: 'cover',
+                      border: '1px solid rgba(255, 74, 147, 0.3)'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setWishImage(null)}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.2)',
+                      border: 'none',
+                      color: '#ef4444',
+                      borderRadius: '50%',
+                      width: '22px',
+                      height: '22px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      fontWeight: 'bold',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
           <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
             <Plus size={18} /> Add Wish to Wall
           </button>
@@ -245,57 +376,66 @@ function WishesWall({ wishes = [], setWishes, onCelebrate, showStaticGrid = true
 
       {/* Display Board (Only if showStaticGrid is true) */}
       {showStaticGrid && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
-          {wishes.map((w, idx) => (
-            <div 
-              key={w.id} 
-              className="glass-container"
-              onMouseMove={(e) => handleHoverCard(e, w.color)}
-              style={{
-                padding: '24px',
-                textAlign: 'left',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                minHeight: '160px',
-                borderLeft: `4px solid ${
-                  w.color === 'pink' ? 'var(--accent-primary)' : w.color === 'indigo' ? 'var(--accent-secondary)' : 'var(--accent-gold)'
-                }`,
-                background: 'rgba(255,255,255,0.02)',
-                animation: 'dropDownCard 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.15) forwards',
-                animationDelay: `${idx * 0.08}s`,
-                opacity: 0,
-                transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.2), box-shadow 0.3s, border-color 0.3s',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-6px)'
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)'
-                e.currentTarget.style.boxShadow = `0 12px 24px rgba(0,0,0,0.3), 0 0 15px ${
-                  w.color === 'pink' ? 'rgba(255,74,147,0.2)' : w.color === 'indigo' ? 'rgba(140,82,255,0.2)' : 'rgba(255,190,59,0.2)'
-                }`
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)'
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
-                e.currentTarget.style.boxShadow = 'none'
-              }}
-            >
-              <p style={{ fontSize: '0.95rem', fontStyle: 'italic', marginBottom: '16px', color: '#eae6f8', lineHeight: '1.5' }}>
-                "{w.text}"
-              </p>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Posted</span>
-                <span style={{ 
-                  fontSize: '0.85rem', 
-                  fontWeight: '600', 
-                  color: w.color === 'pink' ? 'var(--accent-primary)' : w.color === 'indigo' ? 'var(--accent-secondary)' : 'var(--accent-gold)'
-                }}>
-                  - {w.sender}
-                </span>
+        <div className="wishes-grid">
+          {wishes.map((w, idx) => {
+            const angle = (idx % 3 - 1) * 1.8
+            return (
+              <div 
+                key={w.id} 
+                className={`wish-sticky-note color-${w.color}`}
+                onMouseMove={(e) => handleHoverCard(e, w.color)}
+                style={{
+                  animation: 'dropDownCard 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.15) forwards',
+                  animationDelay: `${idx * 0.08}s`,
+                  opacity: 0,
+                  transform: `rotate(${angle}deg)`,
+                  transition: 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-12px) rotate(0deg) scale(1.05)'
+                  e.currentTarget.style.borderColor = w.color === 'pink' ? 'rgba(255, 74, 147, 0.4)' : w.color === 'indigo' ? 'rgba(140, 82, 255, 0.4)' : 'rgba(255, 190, 59, 0.4)'
+                  e.currentTarget.style.boxShadow = `0 15px 35px rgba(0, 0, 0, 0.5), 0 0 25px ${w.color === 'pink' ? 'rgba(255, 74, 147, 0.45)' : w.color === 'indigo' ? 'rgba(140, 82, 255, 0.45)' : 'rgba(255, 190, 59, 0.45)'}`
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = `translateY(0) rotate(${angle}deg) scale(1)`
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              >
+                <div className="washi-tape" />
+                
+                {w.image && (
+                  <img 
+                    src={w.image} 
+                    alt="Memory" 
+                    style={{
+                      width: '100%',
+                      height: '140px',
+                      objectFit: 'cover',
+                      borderRadius: '12px',
+                      marginBottom: '12px',
+                      border: '1px solid rgba(255, 255, 255, 0.06)'
+                    }}
+                  />
+                )}
+
+                <p style={{ fontSize: '1.4rem', fontFamily: 'Caveat, cursive', marginBottom: '12px', color: '#eae6f8', lineHeight: '1.4' }}>
+                  "{w.text}"
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Posted</span>
+                  <span style={{ 
+                    fontSize: '1.25rem', 
+                    fontWeight: '700', 
+                    fontFamily: 'Caveat, cursive',
+                    color: w.color === 'pink' ? 'var(--accent-primary)' : w.color === 'indigo' ? 'var(--accent-secondary)' : w.color === 'gold' ? 'var(--accent-gold)' : 'var(--accent-primary)'
+                  }}>
+                    - {w.sender}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

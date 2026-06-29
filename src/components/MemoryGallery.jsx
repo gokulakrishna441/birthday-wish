@@ -1,12 +1,88 @@
 import { useState, useEffect, useRef } from 'react'
-import { Upload, Trash2, Wifi, WifiOff, Loader2 } from 'lucide-react'
+import { Upload, Trash2, Loader2, ImagePlus, ChevronDown, ChevronUp } from 'lucide-react'
 import birthdayBg from '../assets/birthday_bg.png'
 import memoryBg from '../assets/memory_bg.png'
-import { db, storage, isFirebaseEnabled } from '../firebase'
-import { collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc } from 'firebase/firestore'
-import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 
-const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.7) => {
+// List of online placeholder assets
+export const SISTER_IMAGES = [
+  {
+    id: 'sister1',
+    src: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=800&auto=format&fit=crop&q=80',
+    title: 'Cherished Moment',
+    description: 'A beautiful memory celebrating you.'
+  },
+  {
+    id: 'sister2',
+    src: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&auto=format&fit=crop&q=80',
+    title: 'Happy Times',
+    description: 'Laughter, joy, and wonderful smiles.'
+  },
+  {
+    id: 'sister3',
+    src: 'https://images.unsplash.com/photo-1464349608316-2b47b27f3b47?w=800&auto=format&fit=crop&q=80',
+    title: 'Special Day',
+    description: 'Every day is special with a sister like you.'
+  }
+]
+
+// IndexedDB Helper implementation for zero-config offline storage
+const DB_NAME = 'sister_memories_db'
+const STORE_NAME = 'memories'
+
+const initDB = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1)
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' })
+      }
+    }
+    request.onsuccess = (e) => resolve(e.target.result)
+    request.onerror = (e) => reject(e.target.error)
+  })
+}
+
+export const getLocalImages = async () => {
+  try {
+    const db = await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readonly')
+      const store = transaction.objectStore(STORE_NAME)
+      const request = store.getAll()
+      request.onsuccess = (e) => resolve(e.target.result)
+      request.onerror = (e) => reject(e.target.error)
+    })
+  } catch (err) {
+    console.error('Failed to query IndexedDB:', err)
+    return []
+  }
+}
+
+const saveLocalImage = async (image) => {
+  const db = await initDB()
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite')
+    const store = transaction.objectStore(STORE_NAME)
+    const request = store.put(image)
+    request.onsuccess = () => resolve()
+    request.onerror = (e) => reject(e.target.error)
+  })
+}
+
+const deleteLocalImage = async (id) => {
+  const db = await initDB()
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite')
+    const store = transaction.objectStore(STORE_NAME)
+    const request = store.delete(id)
+    request.onsuccess = () => resolve()
+    request.onerror = (e) => reject(e.target.error)
+  })
+}
+
+// Client-side canvas image compressor
+const compressImage = (file, maxWidth = 900, maxHeight = 900, quality = 0.75) => {
   return new Promise((resolve) => {
     const reader = new FileReader()
     reader.readAsDataURL(file)
@@ -37,163 +113,75 @@ const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.7) => 
           ctx.drawImage(img, 0, 0, width, height)
 
           const dataUrl = canvas.toDataURL('image/jpeg', quality)
-          canvas.toBlob((blob) => {
-            if (blob) {
-              resolve({ blob, dataUrl })
-            } else {
-              resolve({ blob: file, dataUrl })
-            }
-          }, 'image/jpeg', quality)
+          resolve(dataUrl)
         } catch (e) {
-          console.error("Compression error, using original file", e)
-          resolve({ blob: file, dataUrl: event.target.result })
+          resolve(event.target.result)
         }
       }
-      img.onerror = () => {
-        resolve({ blob: file, dataUrl: event.target.result })
-      }
+      img.onerror = () => resolve(event.target.result)
     }
-    reader.onerror = () => {
-      resolve({ blob: file, dataUrl: null })
-    }
+    reader.onerror = () => resolve(null)
   })
 }
 
 function MemoryGallery() {
-  const [userImages, setUserImages] = useState(() => {
-    if (!isFirebaseEnabled) {
-      const saved = localStorage.getItem('gallery_memories')
-      if (saved) {
-        try {
-          return JSON.parse(saved)
-        } catch (e) {
-          console.error('Failed to load memories from localStorage:', e)
-        }
-      }
-    }
-    return []
-  })
-  const [loading, setLoading] = useState(isFirebaseEnabled)
-  const [uploading, setUploading] = useState(false)
+  const [localImages, setLocalImages] = useState([])
+  const [showUploader, setShowUploader] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [progressText, setProgressText] = useState('')
   const fileInputRef = useRef(null)
 
-  // Load user memories (Firestore only)
+  // Load IndexedDB photos on component mount
   useEffect(() => {
-    if (isFirebaseEnabled) {
-      const memoriesRef = collection(db, 'memories')
-      const q = query(memoriesRef, orderBy('timestamp', 'desc'))
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const list = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-        setUserImages(list)
-        setLoading(false)
-      }, (error) => {
-        console.error('Failed to load memories from Firestore:', error)
-        setUserImages([])
-        setLoading(false)
-      })
-      return () => unsubscribe()
+    const loadImages = async () => {
+      const list = await getLocalImages()
+      setLocalImages(list)
     }
+    loadImages()
   }, [])
 
-  // Sync to localStorage (only if Firebase is disabled)
-  useEffect(() => {
-    if (!isFirebaseEnabled && userImages.length > 0) {
-      localStorage.setItem('gallery_memories', JSON.stringify(userImages))
-    }
-  }, [userImages])
+  const handleBulkUpload = async (e) => {
+    const files = Array.from(e.target.files)
+    if (files.length === 0) return
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
+    setIsProcessing(true)
+    let count = 0
 
-    setUploading(true)
-
-    if (isFirebaseEnabled) {
+    for (const file of files) {
+      count++
+      setProgressText(`Compressing photo ${count} of ${files.length}...`)
       try {
-        const timestamp = Date.now()
-        
-        // 1. Compress image to reduce file size (toBlob for storage, dataUrl for base64 fallback)
-        const { blob, dataUrl } = await compressImage(file)
-        
-        let downloadUrl = ''
-        let filePath = ''
-        let storageSuccess = false
-
-        try {
-          // 2. Try to upload file to Firebase Storage
-          filePath = `memories/${timestamp}_${file.name}`
-          const fileRef = storageRef(storage, filePath)
-          await uploadBytes(fileRef, blob)
-          downloadUrl = await getDownloadURL(fileRef)
-          storageSuccess = true
-        } catch (storageErr) {
-          console.warn('Firebase Storage upload failed (possibly CORS or Rules). Falling back to direct database upload.', storageErr)
+        const dataUrl = await compressImage(file)
+        if (dataUrl) {
+          const newPhoto = {
+            id: `local-${Date.now()}-${Math.random()}`,
+            src: dataUrl,
+            title: 'Special Memory',
+            description: 'A beautiful moment added locally.',
+            timestamp: Date.now()
+          }
+          await saveLocalImage(newPhoto)
         }
-
-        // 3. Save metadata to Firestore (use base64 dataUrl if storage failed)
-        const newImage = {
-          src: storageSuccess ? downloadUrl : dataUrl,
-          storagePath: storageSuccess ? filePath : null,
-          title: 'Special Memory',
-          description: 'A beautiful moment added to the gallery.',
-          timestamp
-        }
-
-        if (!newImage.src) {
-          throw new Error('Failed to process image content')
-        }
-
-        const memoriesRef = collection(db, 'memories')
-        await addDoc(memoriesRef, newImage)
       } catch (err) {
-        console.error('Failed to upload image to Firebase:', err)
-        alert('Failed to upload image. Please verify your Firestore Database Rules.')
-      } finally {
-        setUploading(false)
+        console.error('Error saving image:', err)
       }
-    } else {
-      // LocalStorage Fallback
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const newImage = {
-          id: Date.now(),
-          src: reader.result,
-          title: 'Special Memory',
-          description: 'A beautiful moment added to the gallery.',
-          timestamp: Date.now()
-        }
-        setUserImages(prev => [newImage, ...prev])
-        setUploading(false)
-      }
-      reader.readAsDataURL(file)
     }
+
+    const list = await getLocalImages()
+    setLocalImages(list)
+    setIsProcessing(false)
+    setProgressText('')
+    
+    // Dispatch window event so App.jsx floating wishes can reload
+    window.dispatchEvent(new Event('memories-updated'))
   }
 
-  const handleDeleteImage = async (id, storagePath) => {
+  const handleDeleteLocal = async (id) => {
     if (confirm('Are you sure you want to delete this memory?')) {
-      if (isFirebaseEnabled) {
-        try {
-          // Delete from Firestore
-          await deleteDoc(doc(db, 'memories', id))
-
-          // Delete from Storage
-          if (storagePath) {
-            const fileRef = storageRef(storage, storagePath)
-            await deleteObject(fileRef).catch(err => {
-              console.warn('File deletion in Firebase Storage failed or file does not exist:', err)
-            })
-          }
-        } catch (err) {
-          console.error('Failed to delete memory from Firebase:', err)
-          alert('Failed to delete image from Cloud Database.')
-        }
-      } else {
-        // LocalStorage Fallback
-        setUserImages(prev => prev.filter(img => img.id !== id))
-      }
+      await deleteLocalImage(id)
+      const list = await getLocalImages()
+      setLocalImages(list)
+      window.dispatchEvent(new Event('memories-updated'))
     }
   }
 
@@ -212,147 +200,177 @@ function MemoryGallery() {
     }
   ]
 
-  const allImages = [...defaultImages, ...userImages]
+  const allImages = [...defaultImages, ...SISTER_IMAGES, ...localImages]
 
   return (
     <div className="fade-in">
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        .spinning-loader {
-          animation: spin 1s linear infinite;
-        }
-      `}</style>
-
-      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
         <h2 style={{ fontSize: '2rem', marginBottom: '8px' }}>Memory Lane 📸</h2>
-        <p style={{ color: 'var(--text-secondary)' }}>A gallery of golden moments and beautiful illustrations celebrating you.</p>
-        
-        {/* Connection status indicator */}
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          marginTop: '12px',
-          padding: '4px 12px',
-          borderRadius: '20px',
-          background: isFirebaseEnabled ? 'rgba(56, 189, 248, 0.1)' : 'rgba(251, 113, 133, 0.1)',
-          border: `1px solid ${isFirebaseEnabled ? 'rgba(56, 189, 248, 0.2)' : 'rgba(251, 113, 133, 0.2)'}`,
-          fontSize: '0.8rem',
-          color: isFirebaseEnabled ? '#38bdf8' : '#fb7185'
-        }}>
-          {isFirebaseEnabled ? (
-            <>
-              <Wifi size={12} />
-              <span>Synced Globally via Cloud</span>
-            </>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>A gallery of golden moments and beautiful illustrations celebrating you.</p>
+      </div>
+
+      {/* Elegant Upload center toggle */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '30px' }}>
+        <button 
+          onClick={() => setShowUploader(!showUploader)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'rgba(255, 74, 147, 0.08)',
+            border: '1px solid rgba(255, 74, 147, 0.2)',
+            color: 'var(--accent-primary)',
+            padding: '10px 24px',
+            borderRadius: '30px',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '0.9rem',
+            transition: 'all 0.3s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 74, 147, 0.15)'
+            e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 74, 147, 0.2)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 74, 147, 0.08)'
+            e.currentTarget.style.boxShadow = 'none'
+          }}
+        >
+          <ImagePlus size={18} />
+          <span>Upload Center</span>
+          {showUploader ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+        </button>
+      </div>
+
+      {/* Animated Dropzone Card */}
+      {showUploader && (
+        <div 
+          className="glass-container fade-in responsive-card"
+          style={{
+            maxWidth: '550px',
+            margin: '0 auto 40px',
+            textAlign: 'center',
+            border: '2px dashed rgba(255, 74, 147, 0.3)',
+            background: 'rgba(10, 5, 24, 0.7)',
+            position: 'relative'
+          }}
+        >
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleBulkUpload} 
+            accept="image/*" 
+            multiple
+            style={{ display: 'none' }} 
+            disabled={isProcessing}
+          />
+          
+          {isProcessing ? (
+            <div style={{ padding: '20px 0' }}>
+              <Loader2 size={36} className="spinning-loader" style={{ color: 'var(--accent-primary)', margin: '0 auto 12px', animation: 'spin 1s linear infinite' }} />
+              <h4 style={{ color: 'white', marginBottom: '8px' }}>Processing images...</h4>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{progressText}</p>
+            </div>
           ) : (
-            <>
-              <WifiOff size={12} />
-              <span>Saving locally to browser</span>
-            </>
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              style={{ padding: '20px 0', cursor: 'pointer' }}
+            >
+              <Upload size={40} style={{ color: 'var(--accent-gold)', marginBottom: '12px' }} />
+              <h4 style={{ color: 'white', marginBottom: '6px', fontFamily: 'var(--font-serif)', fontSize: '1.25rem' }}>
+                Bulk Image Upload
+              </h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '12px' }}>
+                Click to select multiple photos from your local device to populate the gallery.
+              </p>
+              <span style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                padding: '4px 12px',
+                borderRadius: '12px',
+                fontSize: '0.75rem',
+                color: 'var(--text-muted)'
+              }}>
+                PNG, JPG, WEBP formats supported
+              </span>
+            </div>
           )}
         </div>
-      </div>
+      )}
       
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px' }}>
-          <div style={{
-            display: 'inline-block',
-            width: '30px',
-            height: '30px',
-            border: '3px solid rgba(255,255,255,0.1)',
-            borderTopColor: 'var(--accent-primary)',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            marginBottom: '10px'
-          }} />
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading memory gallery...</p>
-        </div>
-      ) : (
-        <div className="gallery-grid">
-          {allImages.map((img) => (
-            <div key={img.id} className="gallery-item glass-container" style={{ position: 'relative' }}>
-              <img src={img.src} alt={img.title} className="gallery-image" />
-              <div className="gallery-overlay">
-                <h4>{img.title}</h4>
-                <p>{img.description}</p>
-              </div>
-              
-              {/* Show delete button if it's a user-uploaded image */}
-              {img.id !== 'default1' && img.id !== 'default2' && (
+      <div className="gallery-grid">
+        {allImages.map((img, idx) => {
+          const angle = (idx % 2 === 0 ? -1.5 : 1.5) * 1.2;
+          return (
+            <div 
+              key={img.id} 
+              className="gallery-item glass-container" 
+              style={{ 
+                position: 'relative',
+                transform: `rotate(${angle}deg)`
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px) scale(1.03) rotate(0deg)'
+                e.currentTarget.style.borderColor = 'rgba(255, 74, 147, 0.35)'
+                e.currentTarget.style.boxShadow = '0 15px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 74, 147, 0.2)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = `translateY(0) scale(1) rotate(${angle}deg)`
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'
+                e.currentTarget.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.4)'
+              }}
+            >
+              {/* Show delete button if it is a local user-uploaded image */}
+              {img.id.toString().startsWith('local-') && (
                 <button 
-                  onClick={() => handleDeleteImage(img.id, img.storagePath)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteLocal(img.id);
+                  }}
                   style={{
                     position: 'absolute',
-                    top: '10px',
-                    right: '10px',
-                    background: 'rgba(255, 0, 0, 0.7)',
+                    top: '24px',
+                    right: '24px',
+                    background: 'rgba(239, 68, 68, 0.85)',
                     border: 'none',
                     borderRadius: '50%',
-                    padding: '6px',
+                    width: '30px',
+                    height: '30px',
                     cursor: 'pointer',
                     color: 'white',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    zIndex: 10
+                    zIndex: 10,
+                    transition: 'all 0.2s',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
                   }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#ef4444'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.85)'}
                   title="Delete Photo"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={15} />
                 </button>
               )}
-            </div>
-          ))}
 
-          {/* Add Photo Card */}
-          <div 
-            onClick={() => !uploading && fileInputRef.current?.click()}
-            className="gallery-item glass-container" 
-            style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              padding: '30px', 
-              background: 'linear-gradient(135deg, rgba(140,82,255,0.05), rgba(255,74,147,0.05))',
-              cursor: uploading ? 'not-allowed' : 'pointer',
-              opacity: uploading ? 0.7 : 1
-            }}
-          >
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleImageUpload} 
-              accept="image/*" 
-              style={{ display: 'none' }} 
-              disabled={uploading}
-            />
-            {uploading ? (
-              <>
-                <Loader2 size={48} className="spinning-loader" style={{ color: 'var(--accent-primary)', marginBottom: '12px' }} />
-                <h4 style={{ color: 'white', marginBottom: '8px', fontFamily: 'var(--font-serif)' }}>Uploading...</h4>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center' }}>
-                  Saving photo to cloud storage...
-                </p>
-              </>
-            ) : (
-              <>
-                <Upload size={48} style={{ color: 'var(--accent-gold)', marginBottom: '12px' }} />
-                <h4 style={{ color: 'white', marginBottom: '8px', fontFamily: 'var(--font-serif)' }}>Add Photo</h4>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center' }}>
-                  Upload a custom photo to share in the gallery!
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+              <img 
+                src={img.src} 
+                alt={img.title} 
+                className="gallery-image"
+                onError={(e) => {
+                  // If a local image fails or is missing, show fallback illustration
+                  e.target.src = birthdayBg
+                }}
+              />
+              <div className="gallery-overlay">
+                <h4>{img.title}</h4>
+                <p>{img.description}</p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
 
 export default MemoryGallery
-

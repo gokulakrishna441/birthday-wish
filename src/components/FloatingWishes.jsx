@@ -69,11 +69,6 @@ function FloatingWishes({ wishes = [], memories = [] }) {
           --glow-color: var(--accent-gold);
         }
         @media (max-width: 1024px) {
-          .bg-floating-card {
-            width: 140px;
-          }
-        }
-        @media (max-width: 480px) {
           .bg-card-wrapper {
             display: none !important;
           }

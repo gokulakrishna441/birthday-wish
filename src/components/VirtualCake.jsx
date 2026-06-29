@@ -24,7 +24,7 @@ function VirtualCake({ onCelebrate }) {
   }
 
   return (
-    <div className="glass-container fade-in" style={{ padding: '40px', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
+    <div className="glass-container fade-in responsive-card" style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
       <h2 style={{ fontSize: '2rem', marginBottom: '8px' }}>Blow Out the Candles! 🎂</h2>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '30px' }}>
         Click on each flame to extinguish the candles, or click blow to extinguish them all!
