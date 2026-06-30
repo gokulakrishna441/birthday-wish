@@ -194,7 +194,7 @@ function App() {
               <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={true} role={userRole} />
             </div>
             <div className="dashboard-column">
-              <MemoryGallery />
+              <MemoryGallery role={userRole} />
             </div>
           </main>
         ) : (
@@ -215,7 +215,7 @@ function App() {
                     <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={true} showForm={false} role={userRole} />
                   </div>
                   <div className="dashboard-column">
-                    <MemoryGallery />
+                    <MemoryGallery role={userRole} />
                   </div>
                 </div>
               </section>

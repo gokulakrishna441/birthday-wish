@@ -123,7 +123,7 @@ const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.7) => 
   })
 }
 
-function MemoryGallery() {
+function MemoryGallery({ role }) {
   const [localImages, setLocalImages] = useState([])
   const [cloudImages, setCloudImages] = useState([])
   const [showUploader, setShowUploader] = useState(false)
@@ -261,41 +261,43 @@ function MemoryGallery() {
         <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>A gallery of golden moments and beautiful illustrations celebrating you.</p>
       </div>
 
-      {/* Elegant Upload center toggle */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '30px' }}>
-        <button 
-          onClick={() => setShowUploader(!showUploader)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'rgba(255, 74, 147, 0.08)',
-            border: '1px solid rgba(255, 74, 147, 0.2)',
-            color: 'var(--accent-primary)',
-            padding: '10px 24px',
-            borderRadius: '30px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '0.9rem',
-            transition: 'all 0.3s'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 74, 147, 0.15)'
-            e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 74, 147, 0.2)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 74, 147, 0.08)'
-            e.currentTarget.style.boxShadow = 'none'
-          }}
-        >
-          <ImagePlus size={18} />
-          <span>Upload Center</span>
-          {showUploader ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-        </button>
-      </div>
+      {/* Elegant Upload center toggle (Only for Sister Mode) */}
+      {role === 'sister' && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '30px' }}>
+          <button 
+            onClick={() => setShowUploader(!showUploader)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'rgba(255, 74, 147, 0.08)',
+              border: '1px solid rgba(255, 74, 147, 0.2)',
+              color: 'var(--accent-primary)',
+              padding: '10px 24px',
+              borderRadius: '30px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '0.9rem',
+              transition: 'all 0.3s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 74, 147, 0.15)'
+              e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 74, 147, 0.2)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 74, 147, 0.08)'
+              e.currentTarget.style.boxShadow = 'none'
+            }}
+          >
+            <ImagePlus size={18} />
+            <span>Upload Center</span>
+            {showUploader ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          </button>
+        </div>
+      )}
 
-      {/* Animated Dropzone Card */}
-      {showUploader && (
+      {/* Animated Dropzone Card (Only for Sister Mode) */}
+      {showUploader && role === 'sister' && (
         <div 
           className="glass-container fade-in responsive-card"
           style={{
