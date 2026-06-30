@@ -383,7 +383,11 @@ function WishesWall({ wishes, setWishes, onCelebrate, showStaticGrid = true, sho
               <div 
                 key={w.id} 
                 className={`wish-sticky-note color-${w.color}`}
-                onMouseMove={(e) => handleHoverCard(e, w.color)}
+                onMouseMove={(e) => {
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    handleHoverCard(e, w.color);
+                  }
+                }}
                 style={{
                   animation: 'dropDownCard 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.15) forwards',
                   animationDelay: `${idx * 0.08}s`,
@@ -410,10 +414,11 @@ function WishesWall({ wishes, setWishes, onCelebrate, showStaticGrid = true, sho
                     alt="Memory" 
                     style={{
                       width: '100%',
-                      height: '140px',
-                      objectFit: 'cover',
+                      maxHeight: '220px',
+                      objectFit: 'contain',
                       borderRadius: '12px',
                       marginBottom: '12px',
+                      background: 'rgba(0, 0, 0, 0.25)',
                       border: '1px solid rgba(255, 255, 255, 0.06)'
                     }}
                   />
