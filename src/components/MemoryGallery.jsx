@@ -4,26 +4,22 @@ import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc } from '
 import { db, isFirebaseEnabled } from '../firebase'
 import birthdayBg from '../assets/birthday_bg.png'
 import memoryBg from '../assets/memory_bg.png'
+import happy_moments from '../assets/happy_moments.png'
+import happiest from '../assets/happiest.jpg'
 
 // List of online placeholder assets
 export const SISTER_IMAGES = [
   {
     id: 'sister1',
-    src: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=800&auto=format&fit=crop&q=80',
+    src: happiest,
     title: 'Cherished Moment',
     description: 'A beautiful memory celebrating you.'
   },
   {
     id: 'sister2',
-    src: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&auto=format&fit=crop&q=80',
+    src: happy_moments,
     title: 'Happy Times',
     description: 'Laughter, joy, and wonderful smiles.'
-  },
-  {
-    id: 'sister3',
-    src: 'https://images.unsplash.com/photo-1464349608316-2b47b27f3b47?w=800&auto=format&fit=crop&q=80',
-    title: 'Special Day',
-    description: 'Every day is special with a sister like you.'
   }
 ]
 
@@ -133,6 +129,8 @@ function MemoryGallery() {
   const [showUploader, setShowUploader] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [progressText, setProgressText] = useState('')
+  const [failedImageIds, setFailedImageIds] = useState([])
+  const [activeLightbox, setActiveLightbox] = useState(null)
   const fileInputRef = useRef(null)
 
   // Load IndexedDB photos on mount
@@ -254,6 +252,7 @@ function MemoryGallery() {
   ]
 
   const allImages = [...defaultImages, ...SISTER_IMAGES, ...cloudImages, ...localImages]
+    .filter(img => !failedImageIds.includes(img.id))
 
   return (
     <div className="fade-in">
@@ -358,9 +357,11 @@ function MemoryGallery() {
             <div 
               key={img.id} 
               className="gallery-item glass-container" 
+              onClick={() => setActiveLightbox(img)}
               style={{ 
                 position: 'relative',
-                transform: `rotate(${angle}deg)`
+                transform: `rotate(${angle}deg)`,
+                cursor: 'zoom-in'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-8px) scale(1.03) rotate(0deg)'
@@ -410,8 +411,8 @@ function MemoryGallery() {
                 src={img.src} 
                 alt={img.title} 
                 className="gallery-image"
-                onError={(e) => {
-                  e.target.src = birthdayBg
+                onError={() => {
+                  setFailedImageIds(prev => [...prev, img.id])
                 }}
               />
               <div className="gallery-overlay">
@@ -422,6 +423,55 @@ function MemoryGallery() {
           )
         })}
       </div>
+
+      {/* Lightbox Modal */}
+      {activeLightbox && (
+        <div 
+          onClick={() => setActiveLightbox(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(10, 5, 24, 0.9)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            cursor: 'zoom-out',
+            animation: 'fadeIn 0.3s ease'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ 
+              position: 'relative', 
+              maxWidth: '90%', 
+              maxHeight: '90%', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center' 
+            }}
+          >
+            <img 
+              src={activeLightbox.src} 
+              alt={activeLightbox.title} 
+              style={{
+                maxWidth: '100%',
+                maxHeight: '80vh',
+                objectFit: 'contain',
+                borderRadius: '16px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.8)'
+              }}
+            />
+            <h3 style={{ color: 'white', marginTop: '16px', fontSize: '1.5rem', fontFamily: 'var(--font-serif)' }}>{activeLightbox.title}</h3>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '6px', fontSize: '1rem', textAlign: 'center', maxWidth: '600px' }}>{activeLightbox.description}</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
