@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Wifi, WifiOff, Camera, Loader2, Trash2 } from 'lucide-react'
 import { db, isFirebaseEnabled } from '../firebase'
-import { collection, addDoc } from 'firebase/firestore'
+import { collection, addDoc, deleteDoc, doc } from 'firebase/firestore'
 
 // Canvas image compressor for wish attachments
 const compressImage = (file, maxWidth = 600, maxHeight = 600, quality = 0.7) => {
@@ -46,7 +46,7 @@ const compressImage = (file, maxWidth = 600, maxHeight = 600, quality = 0.7) => 
   })
 }
 
-function WishesWall({ wishes, setWishes, onCelebrate, showStaticGrid = true, showForm = true }) {
+function WishesWall({ wishes, setWishes, onCelebrate, showStaticGrid = true, showForm = true, role }) {
   const [newWish, setNewWish] = useState('')
   const [newSender, setNewSender] = useState('')
   const [wishColor, setWishColor] = useState('pink')
@@ -97,6 +97,22 @@ function WishesWall({ wishes, setWishes, onCelebrate, showStaticGrid = true, sho
       setWishImage(null)
       if (onCelebrate) {
         onCelebrate()
+      }
+    }
+  }
+
+  const handleDeleteWish = async (wish) => {
+    if (confirm('Are you sure you want to delete this wish?')) {
+      if (isFirebaseEnabled) {
+        try {
+          await deleteDoc(doc(db, 'wishes', wish.id))
+        } catch (error) {
+          console.error('Failed to delete wish from Firestore:', error)
+        }
+      } else {
+        const updated = wishes.filter(item => item.id !== wish.id)
+        setWishes(updated)
+        localStorage.setItem('birthday_wishes', JSON.stringify(updated))
       }
     }
   }
@@ -407,6 +423,38 @@ function WishesWall({ wishes, setWishes, onCelebrate, showStaticGrid = true, sho
                 }}
               >
                 <div className="washi-tape" />
+
+                {role === 'sister' && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteWish(w);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '15px',
+                      right: '15px',
+                      background: 'rgba(239, 68, 68, 0.85)',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '28px',
+                      height: '28px',
+                      cursor: 'pointer',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 10,
+                      transition: 'all 0.2s',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#ef4444'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.85)'}
+                    title="Delete Wish"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
                 
                 {w.image && (
                   <img 

@@ -191,7 +191,7 @@ function App() {
         {userRole === 'visitor' ? (
           <main className="main-dashboard fade-in" style={{ minHeight: '400px' }}>
             <div className="dashboard-column">
-              <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={true} />
+              <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={true} role={userRole} />
             </div>
             <div className="dashboard-column">
               <MemoryGallery />
@@ -212,7 +212,7 @@ function App() {
               <section className="scroll-section fade-in">
                 <div className="main-dashboard">
                   <div className="dashboard-column">
-                    <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={true} showForm={false} />
+                    <WishesWall wishes={wishes} setWishes={setWishes} onCelebrate={triggerConfetti} showStaticGrid={true} showForm={false} role={userRole} />
                   </div>
                   <div className="dashboard-column">
                     <MemoryGallery />
