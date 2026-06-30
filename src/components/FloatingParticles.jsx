@@ -21,7 +21,16 @@ function FloatingParticles({ type = 'main', count = 25 }) {
   }, [count])
 
   return (
-    <>
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      overflow: 'hidden',
+      pointerEvents: 'none',
+      zIndex: -1
+    }}>
       {particles.map((p) => (
         <div
           key={p.id}
@@ -40,7 +49,7 @@ function FloatingParticles({ type = 'main', count = 25 }) {
           }
         </div>
       ))}
-    </>
+    </div>
   )
 }
 

@@ -29,8 +29,14 @@
   padding: 0;
 }
 
-html {
+html,
+body {
   overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+}
+
+html {
   -webkit-overflow-scrolling: touch;
 }
 
@@ -147,7 +153,7 @@ h1, h2, h3, h4 {
 
 /* Animated Floating Particles / Confetti / Hearts */
 .floating-element {
-  position: fixed;
+  position: absolute;
   pointer-events: none;
   z-index: -1;
   animation: float-upwards 8s linear infinite;

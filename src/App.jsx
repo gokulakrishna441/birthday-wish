@@ -162,16 +162,16 @@ function App() {
 
   return (
     <>
+      {/* Floating particles background in main application */}
+      <FloatingParticles type="main" count={90} />
+
+      {/* Floating wishes in background across all tabs */}
+      <FloatingWishes wishes={wishes} memories={memories} />
+
+      {/* Confetti Rain Overlay */}
+      <ConfettiOverlay confetti={confetti} />
+
       <div className="layout-container fade-in" style={{ position: 'relative' }}>
-
-        {/* Floating particles background in main application */}
-        <FloatingParticles type="main" count={90} />
-
-        {/* Floating wishes in background across all tabs */}
-        <FloatingWishes wishes={wishes} memories={memories} />
-
-        {/* Confetti Rain Overlay */}
-        <ConfettiOverlay confetti={confetti} />
 
         {/* Sister Login Trigger (Subtle button in the top corner) */}
         {userRole === 'visitor' && (
